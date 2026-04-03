@@ -1,0 +1,14 @@
+---
+description: How to organize Cursor rules—one file per theme, merge related guidance
+alwaysApply: true
+---
+
+# Cursor rules organization
+
+- **Group by shared concept.** Put all guidance that belongs to the **same theme** (e.g. testing, `src/` layout, Git) in **one** `.mdc` file under `.cursor/rules/`, with **sections** (`##`) for subtopics. Do not split into many tiny one-bullet files when they always apply together.
+- **Extend before adding.** When new guidance fits an existing theme, **edit that file** and add a section (or bullet under the right section) instead of creating a new rule file.
+- **Split only when justified.** Create a **separate** file when the topic is **orthogonal** to everything else here, or when a single file has grown **long enough** that merging would hurt discoverability.
+- **Frontmatter `description`.** Summarize the **entire** file’s purpose in one line so the rule picker stays accurate after merges.
+- **File names.** Prefer short **theme** names (`testing.mdc`, `src-layout.mdc`), not names tied to a single subsection.
+
+This rule applies to **future** changes to project rules as well as to consolidating existing files when concepts overlap.

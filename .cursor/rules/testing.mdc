@@ -1,0 +1,34 @@
+---
+description: Test layout under src/, mirror modules with test files, high-fidelity tests
+alwaysApply: true
+---
+
+# Testing
+
+## Package-scoped tests under `src/`
+
+- **Do not** use a single flat **`tests/`** directory at the repository root for tests that belong to a specific package under [`src/`](src/).
+- **Do** give each package that contains Python source (e.g. [`src/goodreads/`](src/goodreads/), [`src/book_advisor/`](src/book_advisor/)) its own **`tests/`** directory **inside that package**: `src/<package>/tests/`.
+- **Put** that package’s test modules, local fixtures, and test-only helpers under `src/<package>/tests/` (e.g. `src/<package>/tests/fixtures/`). Prefer keeping fixtures **local** to the package unless a file is clearly shared across packages.
+- **Register** every such directory in [`pyproject.toml`](pyproject.toml) under **`[tool.pytest.ini_options] testpaths`** (one path per package that has tests). When you add a new tested package, **add** its `src/<package>/tests` entry there.
+- **`pythonpath`** should continue to include **`src`** so imports like `import goodreads` resolve during collection.
+
+Skip generated paths (e.g. `__pycache__`). If you later add **cross-package integration** tests only, prefer a dedicated layout (e.g. under the composing app’s `tests/`) and document it in that package’s README rather than mixing them into unrelated packages’ trees.
+
+## One test module per production module
+
+Within a package’s **`src/<package>/tests/`** tree, **align test files with production modules**:
+
+- For each **distinct** production module **`src/<package>/<name>.py`** (excluding `__init__.py` when it only re-exports or is a thin package marker), prefer a matching test module **`src/<package>/tests/test_<name>.py`** that focuses on that module’s behavior.
+- **Do not** default to a single large catch-all test module for an entire package when production code is split across several modules—split tests the same way so failures map clearly to a file.
+- **Shared fixtures** stay in `tests/fixtures/` or `conftest.py` in that package’s `tests/` directory; **cross-module integration** flows may live in a dedicated `test_integration.py` (or similarly named) **in addition to** module-scoped tests, not instead of them when modules have independent logic.
+
+Reasonable **exceptions** (no separate `test_<name>.py` required): modules that are only re-exports, generated code, or trivial `__init__.py`; behavior covered entirely by integration tests with **no** unit-level surface—use judgment, but bias toward **mirroring module boundaries**.
+
+## High-fidelity checks; avoid bespoke mocks
+
+- **Prefer high-fidelity checks.** Exercise real code paths (real I/O where practical, real adapters, in-memory or container-backed dependencies) so tests show that behavior works—not that a one-off stub returns what the test hard-coded.
+- **Avoid lots of ad hoc mocks.** Do not sprinkle per-test mocks that duplicate production contracts poorly; they often only prove the mock was configured to satisfy the test.
+- **When isolation is required:** build a **small shared test harness** (fixtures, fakes, or test doubles) that **emulates production closely** and **reuse it across tests**—one place to maintain behavior, consistent assumptions, and less duplication.
+
+Use narrow mocks only at true boundaries (e.g. external APIs you cannot call in CI) and keep them minimal and stable.

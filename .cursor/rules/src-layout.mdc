@@ -1,9 +1,17 @@
 ---
-description: Require README.md in each src/ subdirectory and keep them current
+description: Code under src/, split concerns into dirs, README per src subdirectory
 alwaysApply: true
 ---
 
-# Package READMEs under `src/`
+# Source layout and `src/` documentation
+
+## Layout and concerns
+
+- **Application and library code** lives under **`src/`**, not at the repository root.
+- **Separate concerns live in separate directories** (e.g. distinct packages or subpackages for CLI, domain logic, adapters, persistence—not one flat mix of unrelated modules).
+- **Nesting is allowed:** a concern directory may contain subdirectories recursively whenever you need to break a concern into smaller concerns.
+
+## Package READMEs under `src/`
 
 - **Every subdirectory under `src/`** that is part of the source tree (packages, subpackages, and other intentional concern directories) **must include a `README.md`** that explains what that directory is for and how it fits the project. Skip only generated or tooling paths (e.g. `__pycache__`).
 - **When you add** such a directory, **add** its `README.md` at the same time.
