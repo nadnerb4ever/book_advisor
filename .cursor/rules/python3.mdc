@@ -1,0 +1,10 @@
+---
+description: Use Python 3 and respect the pinned version in pyproject.toml
+alwaysApply: true
+---
+
+# Python 3
+
+- This project uses **Python 3** only (no Python 2).
+- Prefer the standard library and type hints where they help clarity.
+- Honor `requires-python` in `pyproject.toml` at the repo root; do not rely on syntax or stdlib features from newer Python lines than that range allows.
