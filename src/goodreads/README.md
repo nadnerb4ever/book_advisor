@@ -8,6 +8,8 @@ This package is **first-party**: it reads the **official desktop CSV export** (`
 
 On the Goodreads website (desktop): **My Books → Import and export → Export library**. Save the file locally.
 
+For this repository, keep your personal copy at **`data/goodreads_library_export.csv`** (repo root). See [`data/README.md`](../../data/README.md).
+
 ## Usage
 
 ```python

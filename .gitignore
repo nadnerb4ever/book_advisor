@@ -1,5 +1,6 @@
 __pycache__/
 *.egg-info/
 
-# Personal Goodreads library export (see src/goodreads/data/README.md)
-src/goodreads/data/*.csv
+# Local persisted data (see data/README.md); README is tracked
+/data/*
+!/data/README.md

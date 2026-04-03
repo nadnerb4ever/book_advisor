@@ -2,6 +2,12 @@
 
 This document is the **high-level intent** for how Book Advisor fits together: major components, data flow, and what exists today versus what is planned. It avoids locking in specific databases, models, or vendor choices.
 
+## Implementation tracking
+
+**Checklists:** As concrete implementation plans are drafted, we add **checkbox lists** under the relevant architecture section (or here for cross-cutting work). While implementing, **mark items complete** by changing `[ ]` to `[x]` so the doc stays a live map of done vs remaining work.
+
+**When to update:** (1) **Drafting a plan** — add or extend checklist steps to match the plan. (2) **Completing a step** — check it off in this file in the same change set as the code (or immediately after).
+
 ## Purpose
 
 Book Advisor aims to produce **personalized book recommendations** by learning from **what you have read**, **how you rated (and described) those books**, **when you read them**, and derived signals such as **series continuity**, **taste**, and **release availability**. The end state is a small set of **top picks** that respect both your history and what is actually available to read now.
@@ -11,7 +17,7 @@ Book Advisor aims to produce **personalized book recommendations** by learning f
 The canonical signal for **books you have finished (or shelved as read)**, **star ratings**, **reviews**, and **dates** comes from your **Goodreads desktop library export** (`goodreads_library_export.csv`).
 
 - **Code:** [`src/goodreads/`](../goodreads/) — CSV parsing and [`GoodreadsLibraryClient`](../goodreads/client.py).
-- **Local data:** [`src/goodreads/data/README.md`](../goodreads/data/README.md) (gitignored CSV for your personal export).
+- **Local data:** Repo-root [`data/README.md`](../../data/README.md) — place **`goodreads_library_export.csv`** there (gitignored); see that file for all persisted artifacts.
 - **Today:** the [`book_advisor` CLI](run.py) command `reading_history` reads that export and prints a simple view of read books and ratings. The **same library data** is intended to feed all downstream stages.
 
 ## Books of interest discovery (planned)
@@ -23,6 +29,15 @@ The canonical signal for **books you have finished (or shelved as read)**, **sta
 2. **Genre / interest-based discovery** — finds books aligned with **genres or topics** you care about (from your history, explicit preferences, or both), via catalogs, APIs, or other sources TBD.
 
 The two parts **both contribute candidates** into a **candidate pool** with **deduplication and identity resolution** as needed. They are not separate top-level architecture branches—just two methodologies inside one discovery stage.
+
+### Implementation checklist (books of interest discovery)
+
+Rolling plan: author-based pipeline and persistence first; genre/interest later. See the Cursor plan *Author discovery persistence CLI* for detail.
+
+- [ ] **Step 1 — Author-based discovery** — `src/discovery/` package: extract authors from the read shelf, catalog protocol + Open Library (or chosen) adapter, orchestration to produce normalized candidate records.
+- [ ] **Step 2 — Persistence** — SQLite (or chosen) store for candidates; default DB under repo-root **`data/`** (e.g. `data/discovery/candidates.sqlite`, gitignored); upsert and query APIs.
+- [ ] **Step 3 — CLI** — `book-advisor discovery update` and `book-advisor discovery list` (or equivalent) wired from [`run.py`](run.py); defaults for CSV path and DB path.
+- [ ] **Step 4 — Genre / interest-based discovery** — *Deferred; not part of the current rollout.*
 
 ## Categorizer / ranker (planned)
 

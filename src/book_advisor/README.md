@@ -10,4 +10,4 @@ Put supporting libraries and isolated concerns in sibling packages under `src/`;
 
 After `pip install -e .`, run **`book-advisor`** (or `python -m book_advisor.run`):
 
-- **`reading_history`** — print each **read** book’s title and your star rating (from [`goodreads`](../goodreads/) CSV). Defaults to `src/goodreads/data/goodreads_library_export.csv`; override with `--csv PATH`.
+- **`reading_history`** — print each **read** book’s title and your star rating (from [`goodreads`](../goodreads/) CSV). Defaults to `data/goodreads_library_export.csv` (repo root); override with `--csv PATH`.

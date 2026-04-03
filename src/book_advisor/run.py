@@ -9,13 +9,12 @@ from goodreads import GoodreadsLibraryClient
 _RATING_COLUMN_WIDTH = len("(no rating)")
 
 
+def _repo_root() -> Path:
+    return Path(__file__).resolve().parent.parent.parent
+
+
 def _default_export_csv() -> Path:
-    return (
-        Path(__file__).resolve().parent.parent
-        / "goodreads"
-        / "data"
-        / "goodreads_library_export.csv"
-    )
+    return _repo_root() / "data" / "goodreads_library_export.csv"
 
 
 def _run_reading_history(csv_path: Path) -> None:
