@@ -1,0 +1,12 @@
+---
+description: Prefer real integrations in tests; shared production-like mocks only when necessary
+alwaysApply: true
+---
+
+# Testing without bespoke mocks
+
+- **Prefer high-fidelity checks.** Exercise real code paths (real I/O where practical, real adapters, in-memory or container-backed dependencies) so tests show that behavior works—not that a one-off stub returns what the test hard-coded.
+- **Avoid lots of ad hoc mocks.** Do not sprinkle per-test mocks that duplicate production contracts poorly; they often only prove the mock was configured to satisfy the test.
+- **When isolation is required:** build a **small shared test harness** (fixtures, fakes, or test doubles) that **emulates production closely** and **reuse it across tests**—one place to maintain behavior, consistent assumptions, and less duplication.
+
+Use narrow mocks only at true boundaries (e.g. external APIs you cannot call in CI) and keep them minimal and stable.

@@ -1,0 +1,12 @@
+---
+description: Limit scope of edits and commits to the stated goal; avoid drive-by refactors
+alwaysApply: true
+---
+
+# Focused changes and commits
+
+- **Match the request.** Implement only what was asked. Do not expand scope, “clean up” nearby code, reformat unrelated files, or rename things outside the task unless the user explicitly asked.
+- **One goal per change set.** Prefer a small, reviewable diff that a reader can tie to a single purpose. If something unrelated is wrong, note it briefly instead of fixing it in the same pass (unless it blocks the task).
+- **Avoid fluff.** Skip extra comments, docstrings, or structural churn that do not serve the goal. Fewer, clearer edits beat large cosmetic diffs.
+
+When in doubt, do less and ask whether a follow-up change is wanted.
