@@ -34,9 +34,9 @@ The two parts **both contribute candidates** into a **candidate pool** with **de
 
 Rolling plan: author-based pipeline and persistence first; genre/interest later. See the Cursor plan *Author discovery persistence CLI* for detail.
 
-- [ ] **Step 1 — Author-based discovery** — `src/discovery/` package: extract authors from the read shelf, catalog protocol + Open Library (or chosen) adapter, orchestration to produce normalized candidate records.
-- [ ] **Step 2 — Persistence** — SQLite (or chosen) store for candidates; default DB under repo-root **`data/`** (e.g. `data/discovery/candidates.sqlite`, gitignored); upsert and query APIs.
-- [ ] **Step 3 — CLI** — `book-advisor discovery update` and `book-advisor discovery list` (or equivalent) wired from [`run.py`](run.py); defaults for CSV path and DB path.
+- [x] **Step 1 — Author-based discovery** — `src/discovery/` package: extract authors from the read shelf, catalog protocol + Open Library (or chosen) adapter, orchestration to produce normalized candidate records.
+- [x] **Step 2 — Persistence** — SQLite (or chosen) store for candidates; default DB under repo-root **`data/`** (e.g. `data/discovery/candidates.sqlite`, gitignored); upsert and query APIs.
+- [x] **Step 3 — CLI** — `book-advisor discovery update` and `book-advisor discovery list` (or equivalent) wired from [`run.py`](run.py); defaults for CSV path and DB path.
 - [ ] **Step 4 — Genre / interest-based discovery** — *Deferred; not part of the current rollout.*
 
 ## Categorizer / ranker (planned)
@@ -99,7 +99,7 @@ flowchart TD
 |------|--------|
 | Reading library from Goodreads CSV | **Implemented** ([`goodreads`](../goodreads/)) |
 | CLI: `reading_history` | **Implemented** ([`run.py`](run.py)) |
-| Books of interest discovery (author + genre/interest) | **Planned** |
+| Books of interest discovery (author-based path) | **Implemented** ([`discovery`](../discovery/)); genre/interest **planned** |
 | Categorizer / ranker (incl. series-aware weight + annotation) | **Planned** |
 | Researcher loop (deep dive, multi-dim scores) | **Future** |
 | Recommender (top picks + release awareness) | **Planned** |

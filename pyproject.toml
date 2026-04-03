@@ -10,6 +10,7 @@ readme = "README.md"
 requires-python = ">=3.14.3,<3.15"
 dependencies = [
     "click>=8.1",
+    "requests>=2.28",
 ]
 
 [project.scripts]
@@ -22,5 +23,5 @@ dev = ["pytest>=8"]
 where = ["src"]
 
 [tool.pytest.ini_options]
-testpaths = ["src/goodreads/tests"]
+testpaths = ["src/goodreads/tests", "src/discovery/tests"]
 pythonpath = ["src"]
