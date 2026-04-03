@@ -1,0 +1,11 @@
+---
+description: No local commits or pushes unless the user explicitly asks
+alwaysApply: true
+---
+
+# Git: commits and pushes
+
+- **Do not run `git commit`** (or otherwise create commits) unless the user explicitly asks you to commit. Assume they want to review and polish changes first.
+- **Do not run `git push`** (or otherwise update the remote) unless the user explicitly tells you to push.
+
+Staging files (`git add`) is fine when needed for a specific task the user requested, unless they say otherwise.
