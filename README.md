@@ -5,3 +5,5 @@ This project uses **personal reading history** and **reviews** to produce **pers
 **Status:** Early planning—repository initialized for future development.
 
 **Python:** Target **3.14.x** (see `requires-python` in [`pyproject.toml`](pyproject.toml) and [`.python-version`](.python-version)). Application code lives under [`src/`](src/).
+
+**Architecture:** See the intent-level overview in [`src/book_advisor/ARCHITECTURE.md`](src/book_advisor/ARCHITECTURE.md).
