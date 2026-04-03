@@ -1,0 +1,5 @@
+Book Id,Title,Author,Author l-f,Additional Authors,ISBN,ISBN13,My Rating,Average Rating,Publisher,Binding,Number of Pages,Year Published,Original Publication Year,Date Read,Date Added,Bookshelves,Bookshelves with positions,Exclusive Shelf,My Review,Spoiler,Private Notes,Read Count,Owned Copies
+1,"Prueba 🐍","Anna Author","Author, Anna",,1234567890,9780000000001,5,4.25,Example Press,Paperback,300,2020,2019,2024/01/15,2023/12/01,"fantasy, read",,read,"Line one
+Line two",,,1,
+2,Plain Title,Bob Writer,"Writer, Bob",,,,0,3.50,,,,,,,2024/02/01,,,to-read,,,,
+3,No Star Book,C Lee,"Lee, C",,,,,4.00,,,,,,,,,,read,,,,

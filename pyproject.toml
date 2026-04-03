@@ -9,5 +9,12 @@ description = "Personalized book recommendations from reading history and review
 readme = "README.md"
 requires-python = ">=3.14.3,<3.15"
 
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["src/goodreads/tests"]
+pythonpath = ["src"]
