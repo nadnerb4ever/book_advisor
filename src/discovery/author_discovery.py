@@ -4,8 +4,8 @@ import time
 from collections.abc import Callable, Iterable
 from pathlib import Path
 
-from goodreads import GoodreadsLibraryClient
-from goodreads.models import LibraryExportRow
+from reading_history import GoodreadsLibraryClient
+from reading_history.goodreads_export.models import LibraryExportRow
 
 from discovery.authors import unique_primary_author_names
 from discovery.catalog import AuthorWorksCatalog

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from goodreads.models import LibraryExportRow
+from reading_history.goodreads_export.models import LibraryExportRow
 
 from discovery.author_discovery import discover_author_based_candidates
 from discovery.models import (

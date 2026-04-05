@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
-from goodreads.models import LibraryExportRow
+from reading_history.goodreads_export.models import LibraryExportRow
 
 
 def unique_primary_author_names(books: Iterable[LibraryExportRow]) -> list[str]:

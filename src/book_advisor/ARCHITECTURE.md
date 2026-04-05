@@ -16,7 +16,7 @@ Book Advisor aims to produce **personalized book recommendations** by learning f
 
 The canonical signal for **books you have finished (or shelved as read)**, **star ratings**, **reviews**, and **dates** comes from your **Goodreads desktop library export** (`goodreads_library_export.csv`).
 
-- **Code:** [`src/goodreads/`](../goodreads/) — CSV parsing and [`GoodreadsLibraryClient`](../goodreads/client.py).
+- **Code:** [`src/reading_history/`](../reading_history/) — reading-history ingestion; today the Goodreads CSV lives under [`goodreads_export/`](../reading_history/goodreads_export/) ([`GoodreadsLibraryClient`](../reading_history/goodreads_export/client.py), [`parse_library_csv`](../reading_history/goodreads_export/read_csv.py)).
 - **Local data:** Repo-root [`data/README.md`](../../data/README.md) — place **`goodreads_library_export.csv`** there (gitignored); see that file for all persisted artifacts.
 - **Today:** the [`book_advisor` CLI](run.py) command `reading_history` reads that export and prints a simple view of read books and ratings. The **same library data** is intended to feed all downstream stages.
 
@@ -112,7 +112,7 @@ flowchart TD
 
 | Area | Status |
 |------|--------|
-| Reading library from Goodreads CSV | **Implemented** ([`goodreads`](../goodreads/)) |
+| Reading library (Goodreads CSV export) | **Implemented** ([`reading_history/goodreads_export`](../reading_history/goodreads_export/)) |
 | CLI: `reading_history` | **Implemented** ([`run.py`](run.py)) |
 | Books of interest discovery (author-based path) | **Implemented** with **Open Library** ([`discovery`](../discovery/)); **Google Books** as planned primary catalog; **Amazon** retail/affiliate path **deferred**; deduplication **planned**; genre/interest **planned** |
 | Categorizer / ranker (incl. series-aware weight + annotation) | **Planned** |
@@ -123,3 +123,8 @@ flowchart TD
 ## Repository layout principle
 
 New **concerns** should appear as **separate packages or directories under [`src/`](../../src/)**, with [`book_advisor`](README.md) responsible for **orchestration**, **CLI**, and **wiring**—not for owning every algorithm or adapter.
+
+### Directory naming under `src/`
+
+- **First level under `src/`** (e.g. [`reading_history/`](../reading_history/), [`discovery/`](../discovery/)) names the **purpose** of the concern—typically aligned with a **stage** or major area in the architecture flow (reading history ingestion, books-of-interest discovery, the runnable app in `book_advisor/`, etc.).
+- **Subdirectories inside those packages** (e.g. [`reading_history/goodreads_export/`](../reading_history/goodreads_export/), [`discovery/open_library/`](../discovery/open_library/)) usually denote a **specific implementation path**: a **third-party source**, export format, or adapter. That keeps multi-source or multi-format evolution localized without renaming the top-level concern when a new backend is added.

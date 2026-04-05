@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from goodreads.client import GoodreadsLibraryClient
+from reading_history.goodreads_export.client import GoodreadsLibraryClient
 
 
 def test_read_books_filters_exclusive_shelf(goodreads_export_csv: Path) -> None:

@@ -5,7 +5,7 @@
 ## Design
 
 - **Catalog protocol** — [`catalog.py`](catalog.py) defines `AuthorWorksCatalog` so you can swap Open Library for Google Books, fixtures in tests, etc.
-- **Default v1 backend** — [`open_library.py`](open_library.py) uses the [Open Library Search API](https://openlibrary.org/dev/docs/api/search) (`/search.json?author=...`). It requires **no API key** and is easy to call from automation. Data quality and latency vary; treat results as **candidates** to be ranked later, not guaranteed matches.
+- **Default v1 backend** — [`open_library/catalog.py`](open_library/catalog.py) uses the [Open Library Search API](https://openlibrary.org/dev/docs/api/search) (`/search.json?author=...`). It requires **no API key** and is easy to call from automation. Data quality and latency vary; treat results as **candidates** to be ranked later, not guaranteed matches. Source-specific adapters live under **`discovery/<source>/`** (e.g. `open_library/`); shared types and orchestration stay at the `discovery/` package root.
 - **Author extraction** — [`authors.py`](authors.py) uses the export’s primary **`author`** field only for v1 (not `additional_authors`).
 
 ## Persistence

@@ -5,7 +5,7 @@ from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
-from goodreads.models import LibraryExportRow
+from reading_history.goodreads_export.models import LibraryExportRow
 
 _CSV_ENCODING = "utf-8-sig"
 
@@ -98,7 +98,9 @@ def _row_from_mapping(row: dict[str, Any]) -> LibraryExportRow:
         binding=_strip_cell(cell("Binding")),
         number_of_pages=_parse_optional_int(cell("Number of Pages")),
         year_published=_parse_optional_int(cell("Year Published")),
-        original_publication_year=_parse_optional_int(cell("Original Publication Year")),
+        original_publication_year=_parse_optional_int(
+            cell("Original Publication Year")
+        ),
         date_read=_parse_optional_date(cell("Date Read")),
         date_added=_parse_optional_date(cell("Date Added")),
         bookshelves=_strip_cell(cell("Bookshelves")),

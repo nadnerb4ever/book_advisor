@@ -5,7 +5,7 @@ from pathlib import Path
 import click
 
 from book_advisor.paths import default_discovery_db, default_goodreads_csv
-from goodreads import GoodreadsLibraryClient
+from reading_history import GoodreadsLibraryClient
 
 _RATING_COLUMN_WIDTH = len("(no rating)")
 

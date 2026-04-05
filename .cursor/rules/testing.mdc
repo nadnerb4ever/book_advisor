@@ -8,10 +8,10 @@ alwaysApply: true
 ## Package-scoped tests under `src/`
 
 - **Do not** use a single flat **`tests/`** directory at the repository root for tests that belong to a specific package under [`src/`](src/).
-- **Do** give each package that contains Python source (e.g. [`src/goodreads/`](src/goodreads/), [`src/book_advisor/`](src/book_advisor/)) its own **`tests/`** directory **inside that package**: `src/<package>/tests/`.
+- **Do** give each package that contains Python source (e.g. [`src/book_advisor/`](src/book_advisor/), or an implementation subpackage such as [`src/reading_history/goodreads_export/`](src/reading_history/goodreads_export/)) its own **`tests/`** directory **inside that code unit**: typically `src/<package>/tests/` or `src/<package>/<impl>/tests/` when tests belong to a specific adapter.
 - **Put** that package’s test modules, local fixtures, and test-only helpers under `src/<package>/tests/` (e.g. `src/<package>/tests/fixtures/`). Prefer keeping fixtures **local** to the package unless a file is clearly shared across packages.
 - **Register** every such directory in [`pyproject.toml`](pyproject.toml) under **`[tool.pytest.ini_options] testpaths`** (one path per package that has tests). When you add a new tested package, **add** its `src/<package>/tests` entry there.
-- **`pythonpath`** should continue to include **`src`** so imports like `import goodreads` resolve during collection.
+- **`pythonpath`** should continue to include **`src`** so imports like `import reading_history` resolve during collection.
 
 Skip generated paths (e.g. `__pycache__`). If you later add **cross-package integration** tests only, prefer a dedicated layout (e.g. under the composing app’s `tests/`) and document it in that package’s README rather than mixing them into unrelated packages’ trees.
 

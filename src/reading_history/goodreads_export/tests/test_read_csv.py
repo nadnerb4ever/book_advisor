@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from goodreads.read_csv import parse_library_csv
+from reading_history.goodreads_export.read_csv import parse_library_csv
 
 
 def test_parse_library_csv_fixture(goodreads_export_csv: Path) -> None:

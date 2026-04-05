@@ -5,9 +5,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Self
 
-from goodreads.read_csv import parse_library_csv
-from goodreads.models import LibraryExportRow
-
+from reading_history.goodreads_export.models import LibraryExportRow
+from reading_history.goodreads_export.read_csv import parse_library_csv
 
 _READ_SHELF = "read"
 
