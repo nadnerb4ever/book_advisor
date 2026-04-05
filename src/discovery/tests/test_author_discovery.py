@@ -6,8 +6,8 @@ from reading_history.goodreads_export.models import LibraryExportRow
 
 from discovery.author_discovery import discover_author_based_candidates
 from discovery.models import (
-    CATALOG_OPEN_LIBRARY,
     SOURCE_AUTHOR_BASED,
+    CatalogBackend,
     DiscoveredCandidate,
 )
 
@@ -25,7 +25,7 @@ def test_dedupes_across_authors_by_catalog_and_external_id() -> None:
         title="Shared Work",
         author="Any",
         source=SOURCE_AUTHOR_BASED,
-        catalog=CATALOG_OPEN_LIBRARY,
+        catalog=CatalogBackend.OPEN_LIBRARY,
         external_id="/works/OL1W",
         publication_year=2010,
     )
@@ -63,7 +63,7 @@ def test_unique_authors_sorted_and_merged() -> None:
         title="W1",
         author="A",
         source=SOURCE_AUTHOR_BASED,
-        catalog=CATALOG_OPEN_LIBRARY,
+        catalog=CatalogBackend.OPEN_LIBRARY,
         external_id="/w1",
         publication_year=None,
     )
@@ -71,7 +71,7 @@ def test_unique_authors_sorted_and_merged() -> None:
         title="W2",
         author="B",
         source=SOURCE_AUTHOR_BASED,
-        catalog=CATALOG_OPEN_LIBRARY,
+        catalog=CatalogBackend.OPEN_LIBRARY,
         external_id="/w2",
         publication_year=None,
     )
@@ -98,6 +98,120 @@ def test_unique_authors_sorted_and_merged() -> None:
     assert [c.external_id for c in out] == ["/w1", "/w2"]
 
 
+def test_only_author_matches_when_shelf_author_is_last_comma_first() -> None:
+    books = [
+        LibraryExportRow(
+            book_id=1,
+            title="Storm Front",
+            author="Butcher, Jim",
+            exclusive_shelf="read",
+        ),
+    ]
+
+    class TrackCatalog:
+        def __init__(self) -> None:
+            self.seen: list[str] = []
+
+        def works_by_author(self, author_name: str) -> list[DiscoveredCandidate]:
+            self.seen.append(author_name)
+            return []
+
+    cat = TrackCatalog()
+    discover_author_based_candidates(
+        books,
+        cat,
+        only_author="Jim Butcher",
+        pause_between_authors_sec=0.0,
+    )
+    assert cat.seen == ["Butcher, Jim"]
+
+
+def test_only_author_matches_when_user_enters_last_comma_first() -> None:
+    books = [
+        LibraryExportRow(
+            book_id=1,
+            title="Storm Front",
+            author="Jim Butcher",
+            exclusive_shelf="read",
+        ),
+    ]
+
+    class TrackCatalog:
+        def __init__(self) -> None:
+            self.seen: list[str] = []
+
+        def works_by_author(self, author_name: str) -> list[DiscoveredCandidate]:
+            self.seen.append(author_name)
+            return []
+
+    cat = TrackCatalog()
+    discover_author_based_candidates(
+        books,
+        cat,
+        only_author="Butcher, Jim",
+        pause_between_authors_sec=0.0,
+    )
+    assert cat.seen == ["Jim Butcher"]
+
+
+def test_only_author_restricts_to_matching_shelf_name() -> None:
+    books = [
+        LibraryExportRow(
+            book_id=1,
+            title="A",
+            author="Alice Munro",
+            exclusive_shelf="read",
+        ),
+        LibraryExportRow(
+            book_id=2,
+            title="B",
+            author="Bob",
+            exclusive_shelf="read",
+        ),
+    ]
+
+    class TrackCatalog:
+        def __init__(self) -> None:
+            self.seen: list[str] = []
+
+        def works_by_author(self, author_name: str) -> list[DiscoveredCandidate]:
+            self.seen.append(author_name)
+            return []
+
+    cat = TrackCatalog()
+    discover_author_based_candidates(
+        books,
+        cat,
+        only_author="alice munro",
+        pause_between_authors_sec=0.0,
+    )
+    assert cat.seen == ["Alice Munro"]
+
+
+def test_only_author_unknown_raises() -> None:
+    books = [
+        LibraryExportRow(
+            book_id=1,
+            title="A",
+            author="Only One",
+            exclusive_shelf="read",
+        ),
+    ]
+
+    try:
+        discover_author_based_candidates(
+            books,
+            FakeCatalog({}),
+            only_author="Nobody",
+            pause_between_authors_sec=0.0,
+        )
+    except ValueError as e:
+        assert "Nobody" in str(e)
+        assert "Only One" in str(e)
+    else:
+        raise AssertionError("expected ValueError")
+
+
 def test_run_author_discovery_to_list_uses_csv_and_catalog(tmp_path: Path) -> None:
     from discovery.author_discovery import run_author_discovery_to_list
 
@@ -115,7 +229,7 @@ def test_run_author_discovery_to_list_uses_csv_and_catalog(tmp_path: Path) -> No
         title="Lovelace Bio",
         author="Ada Lovelace",
         source=SOURCE_AUTHOR_BASED,
-        catalog=CATALOG_OPEN_LIBRARY,
+        catalog=CatalogBackend.OPEN_LIBRARY,
         external_id="/works/ada",
         publication_year=2020,
     )

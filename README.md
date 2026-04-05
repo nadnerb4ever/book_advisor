@@ -4,6 +4,8 @@ This project uses **personal reading history** and **reviews** to produce **pers
 
 **Status:** Early planning—repository initialized for future development.
 
+**First-time setup:** See **[SETUP.md](SETUP.md)** (Goodreads export, Google Books API key, venv, install).
+
 **Python:** Target **3.14.x** (see `requires-python` in [`pyproject.toml`](pyproject.toml) and [`.python-version`](.python-version)). Application code lives under [`src/`](src/).
 
 **Local data:** Persisted files (exports, databases) live under [`data/`](data/); see [`data/README.md`](data/README.md). Only that README is tracked; other paths are gitignored.

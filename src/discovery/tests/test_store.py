@@ -4,8 +4,8 @@ import sqlite3
 from pathlib import Path
 
 from discovery.models import (
-    CATALOG_OPEN_LIBRARY,
     SOURCE_AUTHOR_BASED,
+    CatalogBackend,
     DiscoveredCandidate,
 )
 from discovery.store import CandidateStore
@@ -18,7 +18,7 @@ def test_upsert_and_iter_roundtrip(tmp_path: Path) -> None:
         title="The Book",
         author="A. Writer",
         source=SOURCE_AUTHOR_BASED,
-        catalog=CATALOG_OPEN_LIBRARY,
+        catalog=CatalogBackend.OPEN_LIBRARY,
         external_id="/works/OL1W",
         publication_year=2001,
         raw_json='{"k":1}',
@@ -39,7 +39,7 @@ def test_upsert_conflict_preserves_first_seen(tmp_path: Path) -> None:
         title="Old Title",
         author="A",
         source=SOURCE_AUTHOR_BASED,
-        catalog=CATALOG_OPEN_LIBRARY,
+        catalog=CatalogBackend.OPEN_LIBRARY,
         external_id="/works/OL9W",
         publication_year=1999,
         raw_json=None,
@@ -56,7 +56,7 @@ def test_upsert_conflict_preserves_first_seen(tmp_path: Path) -> None:
         title="New Title",
         author="A",
         source=SOURCE_AUTHOR_BASED,
-        catalog=CATALOG_OPEN_LIBRARY,
+        catalog=CatalogBackend.OPEN_LIBRARY,
         external_id="/works/OL9W",
         publication_year=2000,
         raw_json=None,
@@ -74,6 +74,45 @@ def test_upsert_conflict_preserves_first_seen(tmp_path: Path) -> None:
     assert last1 >= last0
 
 
+def test_iter_catalog_filter(tmp_path: Path) -> None:
+    db = tmp_path / "c.sqlite"
+    store = CandidateStore(db)
+    store.upsert_candidates(
+        [
+            DiscoveredCandidate(
+                title="G",
+                author="A",
+                source=SOURCE_AUTHOR_BASED,
+                catalog=CatalogBackend.GOOGLE_BOOKS,
+                external_id="gb1",
+                publication_year=None,
+            ),
+            DiscoveredCandidate(
+                title="O",
+                author="B",
+                source=SOURCE_AUTHOR_BASED,
+                catalog=CatalogBackend.OPEN_LIBRARY,
+                external_id="/ol1",
+                publication_year=None,
+            ),
+        ]
+    )
+    assert store.count(catalog=CatalogBackend.GOOGLE_BOOKS) == 1
+    assert store.count(catalog=CatalogBackend.OPEN_LIBRARY) == 1
+    assert store.count() == 2
+    gb = list(store.iter_candidates(catalog=CatalogBackend.GOOGLE_BOOKS))
+    assert len(gb) == 1 and gb[0].title == "G"
+    ol = list(store.iter_candidates(catalog=CatalogBackend.OPEN_LIBRARY))
+    assert len(ol) == 1 and ol[0].title == "O"
+    both = list(
+        store.iter_candidates(
+            source=SOURCE_AUTHOR_BASED,
+            catalog=CatalogBackend.OPEN_LIBRARY,
+        )
+    )
+    assert len(both) == 1
+
+
 def test_iter_source_filter(tmp_path: Path) -> None:
     db = tmp_path / "c.sqlite"
     store = CandidateStore(db)
@@ -83,7 +122,7 @@ def test_iter_source_filter(tmp_path: Path) -> None:
                 title="X",
                 author="P",
                 source=SOURCE_AUTHOR_BASED,
-                catalog=CATALOG_OPEN_LIBRARY,
+                catalog=CatalogBackend.OPEN_LIBRARY,
                 external_id="/a",
                 publication_year=None,
             ),
@@ -102,7 +141,7 @@ def test_iter_limit(tmp_path: Path) -> None:
                 title="B",
                 author="Z",
                 source=SOURCE_AUTHOR_BASED,
-                catalog=CATALOG_OPEN_LIBRARY,
+                catalog=CatalogBackend.OPEN_LIBRARY,
                 external_id="/b",
                 publication_year=None,
             ),
@@ -110,7 +149,7 @@ def test_iter_limit(tmp_path: Path) -> None:
                 title="A",
                 author="Z",
                 source=SOURCE_AUTHOR_BASED,
-                catalog=CATALOG_OPEN_LIBRARY,
+                catalog=CatalogBackend.OPEN_LIBRARY,
                 external_id="/a",
                 publication_year=None,
             ),

@@ -18,7 +18,7 @@ The canonical signal for **books you have finished (or shelved as read)**, **sta
 
 - **Code:** [`src/reading_history/`](../reading_history/) — reading-history ingestion; today the Goodreads CSV lives under [`goodreads_export/`](../reading_history/goodreads_export/) ([`GoodreadsLibraryClient`](../reading_history/goodreads_export/client.py), [`parse_library_csv`](../reading_history/goodreads_export/read_csv.py)).
 - **Local data:** Repo-root [`data/README.md`](../../data/README.md) — place **`goodreads_library_export.csv`** there (gitignored); see that file for all persisted artifacts.
-- **Today:** the [`book_advisor` CLI](run.py) command `reading_history` reads that export and prints a simple view of read books and ratings. The **same library data** is intended to feed all downstream stages.
+- **Today:** the [`book_advisor` CLI](run.py) command `reading_history` reads that export and prints read books with **author**, title, and rating. The **same library data** is intended to feed all downstream stages.
 
 ## Books of interest discovery (planned)
 
@@ -36,9 +36,9 @@ The sourcing paths and the dedupe pass are **not** separate top-level architectu
 
 Discovery uses a pluggable **`AuthorWorksCatalog`** so the backing API can change without rewriting the whole pipeline.
 
-**Near-term primary (planned): [Google Books API](https://developers.google.com/books)** — Build and harden the rest of the tool (ranker, recommender, workflow) with **Google Books** as the main author/title discovery source: **API key + quota**, generally strong search coverage, and **ISBN-friendly** metadata for dedupe. Results are **not** guaranteed to line up 1:1 with a specific **Kindle** product page; bridging to “what I can open on Kindle” can be a later step (manual links, ASIN lookup, or a retail API).
+**Primary author catalog (implemented): [Google Books API](https://developers.google.com/books)** — [`discovery/google_books/`](../discovery/google_books/) implements author queries via the Volumes API; the CLI defaults to **`google_books`** with an **API key** from env, optional **`data/google_books_api_key`**, or **`--google-api-key`** (see [SETUP.md](../../SETUP.md)). Strong search coverage and **ISBN-friendly** metadata help dedupe later. Results are **not** guaranteed to match a specific **Kindle** product page; bridging to retail listings can come later.
 
-**Open Library (current first adapter):** The shipped v1 code uses **Open Library** because it is **keyless** and easy to automate. In practice it has proven **weak for this project’s goals**: **author search often returns nothing** while the same author exists on the website under a resolved author record; **coverage is uneven** for active or indie authors and **series are frequently incomplete** (e.g. only some volumes attached to a work); the **work/edition graph** creates **heavy deduplication** burden and duplicate work IDs with **disjoint edition sets** (so even ISBN-based clustering does not always merge obvious duplicates). These issues are **catalog quality and coverage**, not fixable purely by better OL query strings—so OL is **not** the long-term primary source.
+**Open Library (optional adapter):** **`discovery/open_library/`** remains available as **`--catalog open_library`** (no key). In practice OL has proven **weak for completeness** for some authors/series; see earlier notes: **author search often returns nothing** while the same author exists on the website under a resolved author record; **coverage is uneven** for active or indie authors and **series are frequently incomplete** (e.g. only some volumes attached to a work); the **work/edition graph** creates **heavy deduplication** burden and duplicate work IDs with **disjoint edition sets** (so even ISBN-based clustering does not always merge obvious duplicates). These issues are **catalog quality and coverage**, not fixable purely by better OL query strings—so OL is **not** the long-term primary source.
 
 **Future expansion: Amazon (Associates / retail APIs)** — For **Kindle-first** reading (buy or borrow in the Kindle ecosystem), **Amazon** is the most faithful catalog of **what is actually listed**. Using **Product Advertising API** (being superseded for **new** integrations by **[Creators API](https://affiliate-program.amazon.com/creatorsapi/docs/en-us/introduction)** per current Amazon documentation) typically requires **Amazon Associates** compliance: a **declared public Site** (or qualifying app/social channel) with **substantive original content**, **tagged links** as required, and **program rules** (including review after **qualifying referred sales**—personal purchases do not count). That bar is **intentionally deferred** until the rest of Book Advisor is **working end-to-end**; then scope can expand (e.g. a small public site or channel) if retail-aligned discovery is worth the operational overhead.
 
@@ -46,7 +46,7 @@ Discovery uses a pluggable **`AuthorWorksCatalog`** so the backing API can chang
 
 Rolling plan: author-based pipeline and persistence first; genre/interest later. See the Cursor plan *Author discovery persistence CLI* for detail.
 
-- [x] **Step 1 — Author-based discovery** — `src/discovery/` package: extract authors from the read shelf, catalog protocol + adapter, orchestration to produce normalized candidate records. *(Shipped with **Open Library**; **Google Books** adapter planned as primary per [Catalog vendor strategy](#catalog-vendor-strategy-open-library-google-books-optional-amazon) above.)*
+- [x] **Step 1 — Author-based discovery** — `src/discovery/` package: extract authors from the read shelf, catalog protocol + adapters (**Google Books** default in CLI, **Open Library** optional), orchestration to produce normalized candidate records (`CatalogBackend` enum). See [Catalog vendor strategy](#catalog-vendor-strategy-open-library-google-books-optional-amazon) above.
 - [x] **Step 2 — Persistence** — SQLite (or chosen) store for candidates; default DB under repo-root **`data/`** (e.g. `data/discovery/candidates.sqlite`, gitignored); upsert and query APIs.
 - [x] **Step 3 — CLI** — `book-advisor discovery update` and `book-advisor discovery list` (or equivalent) wired from [`run.py`](run.py); defaults for CSV path and DB path.
 - [ ] **Step 4 — Genre / interest-based discovery** — *Deferred; not part of the current rollout.*
@@ -114,7 +114,7 @@ flowchart TD
 |------|--------|
 | Reading library (Goodreads CSV export) | **Implemented** ([`reading_history/goodreads_export`](../reading_history/goodreads_export/)) |
 | CLI: `reading_history` | **Implemented** ([`run.py`](run.py)) |
-| Books of interest discovery (author-based path) | **Implemented** with **Open Library** ([`discovery`](../discovery/)); **Google Books** as planned primary catalog; **Amazon** retail/affiliate path **deferred**; deduplication **planned**; genre/interest **planned** |
+| Books of interest discovery (author-based path) | **Implemented** ([`discovery`](../discovery/)): **Google Books** default CLI catalog, **Open Library** optional; **Amazon** retail/affiliate path **deferred**; deduplication **planned**; genre/interest **planned** |
 | Categorizer / ranker (incl. series-aware weight + annotation) | **Planned** |
 | Researcher loop (deep dive, multi-dim scores) | **Future** |
 | Recommender (top picks + release awareness) | **Planned** |
@@ -127,4 +127,4 @@ New **concerns** should appear as **separate packages or directories under [`src
 ### Directory naming under `src/`
 
 - **First level under `src/`** (e.g. [`reading_history/`](../reading_history/), [`discovery/`](../discovery/)) names the **purpose** of the concern—typically aligned with a **stage** or major area in the architecture flow (reading history ingestion, books-of-interest discovery, the runnable app in `book_advisor/`, etc.).
-- **Subdirectories inside those packages** (e.g. [`reading_history/goodreads_export/`](../reading_history/goodreads_export/), [`discovery/open_library/`](../discovery/open_library/)) usually denote a **specific implementation path**: a **third-party source**, export format, or adapter. That keeps multi-source or multi-format evolution localized without renaming the top-level concern when a new backend is added.
+- **Subdirectories inside those packages** (e.g. [`reading_history/goodreads_export/`](../reading_history/goodreads_export/), [`discovery/open_library/`](../discovery/open_library/), [`discovery/google_books/`](../discovery/google_books/)) usually denote a **specific implementation path**: a **third-party source**, export format, or adapter. That keeps multi-source or multi-format evolution localized without renaming the top-level concern when a new backend is added.

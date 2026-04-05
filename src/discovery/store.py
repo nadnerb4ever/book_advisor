@@ -5,7 +5,7 @@ from collections.abc import Iterator
 from datetime import datetime, timezone
 from pathlib import Path
 
-from discovery.models import DiscoveredCandidate
+from discovery.models import CatalogBackend, DiscoveredCandidate
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS candidates (
@@ -69,7 +69,7 @@ class CandidateStore:
                         raw_json = excluded.raw_json
                     """,
                     (
-                        c.catalog,
+                        c.catalog.value,
                         c.external_id,
                         c.title,
                         c.author,
@@ -94,7 +94,7 @@ class CandidateStore:
             title=row["title"],
             author=row["author"],
             source=row["source"],
-            catalog=row["catalog"],
+            catalog=CatalogBackend(row["catalog"]),
             external_id=row["external_id"],
             publication_year=row["publication_year"],
             raw_json=row["raw_json"],
@@ -104,14 +104,21 @@ class CandidateStore:
         self,
         *,
         source: str | None = None,
+        catalog: CatalogBackend | None = None,
         limit: int | None = None,
     ) -> Iterator[DiscoveredCandidate]:
         self.init_schema()
         sql = "SELECT * FROM candidates"
         params: list[object] = []
+        clauses: list[str] = []
         if source is not None:
-            sql += " WHERE source = ?"
+            clauses.append("source = ?")
             params.append(source)
+        if catalog is not None:
+            clauses.append("catalog = ?")
+            params.append(catalog.value)
+        if clauses:
+            sql += " WHERE " + " AND ".join(clauses)
         sql += " ORDER BY author COLLATE NOCASE, title COLLATE NOCASE"
         if limit is not None:
             sql += " LIMIT ?"
@@ -120,13 +127,24 @@ class CandidateStore:
             for row in conn.execute(sql, params):
                 yield self.row_to_candidate(row)
 
-    def count(self, *, source: str | None = None) -> int:
+    def count(
+        self,
+        *,
+        source: str | None = None,
+        catalog: CatalogBackend | None = None,
+    ) -> int:
         self.init_schema()
         sql = "SELECT COUNT(*) FROM candidates"
         params: list[object] = []
+        clauses: list[str] = []
         if source is not None:
-            sql += " WHERE source = ?"
+            clauses.append("source = ?")
             params.append(source)
+        if catalog is not None:
+            clauses.append("catalog = ?")
+            params.append(catalog.value)
+        if clauses:
+            sql += " WHERE " + " AND ".join(clauses)
         with self._connect() as conn:
             cur = conn.execute(sql, params)
             row = cur.fetchone()

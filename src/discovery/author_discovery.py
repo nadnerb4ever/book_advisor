@@ -7,10 +7,37 @@ from pathlib import Path
 from reading_history import GoodreadsLibraryClient
 from reading_history.goodreads_export.models import LibraryExportRow
 
-from discovery.authors import unique_primary_author_names
+from discovery.authors import author_display_variants, unique_primary_author_names
 from discovery.catalog import AuthorWorksCatalog
 from discovery.models import DiscoveredCandidate
 from discovery.open_library import OpenLibraryCatalog
+
+
+def _authors_restricted_to_only(
+    authors: list[str],
+    only_author: str,
+) -> list[str]:
+    """Return shelf ``Author`` strings that match ``only_author`` (case-insensitive).
+
+    Accepts the same person in natural order (``Jim Butcher``) or ``Last, First``
+    (``Butcher, Jim``), matching how Goodreads stores the export ``Author`` column.
+    """
+    needle = only_author.strip()
+    if not needle:
+        msg = "only_author must be a non-empty string"
+        raise ValueError(msg)
+    want = author_display_variants(needle)
+    matches = [a for a in authors if want & author_display_variants(a)]
+    if not matches:
+        preview = ", ".join(repr(a) for a in authors[:12])
+        suffix = " …" if len(authors) > 12 else ""
+        msg = (
+            f"No read-shelf primary author matches {needle!r} "
+            f"(try the exact `Author` column text, or natural vs 'Last, First' order). "
+            f"Known authors: {preview}{suffix}"
+        )
+        raise ValueError(msg)
+    return matches
 
 
 def discover_author_based_candidates(
@@ -19,12 +46,20 @@ def discover_author_based_candidates(
     *,
     pause_between_authors_sec: float = 1.0,
     logger: Callable[[str], None] | None = None,
+    only_author: str | None = None,
 ) -> list[DiscoveredCandidate]:
     """Collect candidates for each distinct primary author on the read shelf.
 
     Deduplicates by (catalog, external_id) across all authors.
+
+    If ``only_author`` is set, only that name is queried (must match a primary
+    author string from the read shelf, case-insensitive).
     """
     authors = unique_primary_author_names(read_books)
+    if only_author is not None:
+        authors = _authors_restricted_to_only(authors, only_author)
+        if logger:
+            logger(f"Single-author mode: querying only {authors[0]!r}.")
     if logger:
         if not authors:
             logger("No primary authors on the read shelf; nothing to query.")
@@ -69,6 +104,7 @@ def run_author_discovery_to_list(
     catalog: AuthorWorksCatalog | None = None,
     pause_between_authors_sec: float = 1.0,
     logger: Callable[[str], None] | None = None,
+    only_author: str | None = None,
 ) -> list[DiscoveredCandidate]:
     """Load Goodreads read shelf and return merged author-based candidates."""
     if logger:
@@ -83,4 +119,5 @@ def run_author_discovery_to_list(
         cat,
         pause_between_authors_sec=pause_between_authors_sec,
         logger=logger,
+        only_author=only_author,
     )

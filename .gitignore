@@ -4,3 +4,5 @@ __pycache__/
 # Local persisted data (see data/README.md); README is tracked
 /data/*
 !/data/README.md
+# Google Books API key (also under /data/*; explicit for audits)
+/data/google_books_api_key

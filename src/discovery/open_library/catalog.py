@@ -7,8 +7,8 @@ from typing import Any
 import requests
 
 from discovery.models import (
-    CATALOG_OPEN_LIBRARY,
     SOURCE_AUTHOR_BASED,
+    CatalogBackend,
     DiscoveredCandidate,
 )
 
@@ -68,9 +68,14 @@ class OpenLibraryCatalog:
                     continue
                 seen_ids.add(cand.external_id)
                 out.append(cand)
-            if len(docs) < self._page_size:
+            num_total = data.get("numFound")
+            if not isinstance(num_total, int):
+                alt = data.get("num_found")
+                num_total = alt if isinstance(alt, int) else None
+            offset += len(docs)
+            if num_total is not None and offset >= num_total:
                 break
-            offset += self._page_size
+            # No numFound: keep requesting until a page returns zero docs (see loop guard).
             if self._pause > 0:
                 time.sleep(self._pause)
         return out
@@ -98,7 +103,7 @@ def _doc_to_candidate(doc: dict[str, Any], query_author: str) -> DiscoveredCandi
         title=title.strip(),
         author=author_display,
         source=SOURCE_AUTHOR_BASED,
-        catalog=CATALOG_OPEN_LIBRARY,
+        catalog=CatalogBackend.OPEN_LIBRARY,
         external_id=key,
         publication_year=year,
         raw_json=raw,

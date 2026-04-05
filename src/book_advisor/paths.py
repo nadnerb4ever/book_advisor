@@ -13,3 +13,7 @@ def default_goodreads_csv() -> Path:
 
 def default_discovery_db() -> Path:
     return repo_root() / "data" / "discovery" / "candidates.sqlite"
+
+
+def default_google_books_api_key_file() -> Path:
+    return repo_root() / "data" / "google_books_api_key"
