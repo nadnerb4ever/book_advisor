@@ -9,7 +9,7 @@
 - **Google Books (CLI default)** — [`google_books/catalog.py`](google_books/catalog.py) uses the [Volumes API](https://developers.google.com/books/docs/v1/using) with `q=inauthor:"..."`. Requires an **API key** (env, file, or flag); see [SETUP.md](../../SETUP.md).
 - **Open Library (optional)** — [`open_library/catalog.py`](open_library/catalog.py) uses the [Open Library Search API](https://openlibrary.org/dev/docs/api/search). **No API key.** Quality/coverage vary; useful for keyless runs (`--catalog open_library`).
 
-Source-specific adapters live under **`discovery/<source>/`**; shared orchestration lives in [`author_discovery.py`](author_discovery.py).
+Source-specific adapters live under **`discovery/<source>/`**. Service-style orchestration: [`author_discovery.py`](author_discovery.py), [`catalog_factory.py`](catalog_factory.py), [`candidate_list.py`](candidate_list.py), [`discovery_update.py`](discovery_update.py). See CSR layering in [`../book_advisor/ARCHITECTURE.md`](../book_advisor/ARCHITECTURE.md). **Author filter semantics** use [`../common/authors.py`](../common/authors.py).
 
 ## Persistence
 

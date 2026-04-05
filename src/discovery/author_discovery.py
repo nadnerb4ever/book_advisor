@@ -4,10 +4,13 @@ import time
 from collections.abc import Callable, Iterable
 from pathlib import Path
 
+from common.authors import (
+    filter_canonical_author_names,
+    format_known_strings_preview,
+    unique_primary_author_names,
+)
 from reading_history import GoodreadsLibraryClient
 from reading_history.goodreads_export.models import LibraryExportRow
-
-from discovery.authors import author_display_variants, unique_primary_author_names
 from discovery.catalog import AuthorWorksCatalog
 from discovery.models import DiscoveredCandidate
 from discovery.open_library import OpenLibraryCatalog
@@ -17,24 +20,18 @@ def _authors_restricted_to_only(
     authors: list[str],
     only_author: str,
 ) -> list[str]:
-    """Return shelf ``Author`` strings that match ``only_author`` (case-insensitive).
-
-    Accepts the same person in natural order (``Jim Butcher``) or ``Last, First``
-    (``Butcher, Jim``), matching how Goodreads stores the export ``Author`` column.
-    """
+    """Return shelf ``Author`` strings that match ``only_author`` (see ``common.authors``)."""
     needle = only_author.strip()
     if not needle:
         msg = "only_author must be a non-empty string"
         raise ValueError(msg)
-    want = author_display_variants(needle)
-    matches = [a for a in authors if want & author_display_variants(a)]
+    matches = filter_canonical_author_names(authors, needle)
     if not matches:
-        preview = ", ".join(repr(a) for a in authors[:12])
-        suffix = " …" if len(authors) > 12 else ""
+        preview = format_known_strings_preview(authors)
         msg = (
             f"No read-shelf primary author matches {needle!r} "
             f"(try the exact `Author` column text, or natural vs 'Last, First' order). "
-            f"Known authors: {preview}{suffix}"
+            f"Known authors: {preview}"
         )
         raise ValueError(msg)
     return matches

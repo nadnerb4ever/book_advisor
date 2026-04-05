@@ -23,5 +23,10 @@ dev = ["pytest>=8", "responses>=0.25"]
 where = ["src"]
 
 [tool.pytest.ini_options]
-testpaths = ["src/reading_history/goodreads_export/tests", "src/discovery/tests"]
+testpaths = [
+    "src/common/tests",
+    "src/reading_history/tests",
+    "src/reading_history/goodreads_export/tests",
+    "src/discovery/tests",
+]
 pythonpath = ["src"]

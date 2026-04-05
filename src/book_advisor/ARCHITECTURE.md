@@ -12,13 +12,64 @@ This document is the **high-level intent** for how Book Advisor fits together: m
 
 Book Advisor aims to produce **personalized book recommendations** by learning from **what you have read**, **how you rated (and described) those books**, **when you read them**, and derived signals such as **series continuity**, **taste**, and **release availability**. The end state is a small set of **top picks** that respect both your history and what is actually available to read now.
 
+## Layering: Controller–Service–Repository (CSR)
+
+Code is organized into three roles. **CSR** is the guideline for where new logic should live.
+
+| Layer | Location | Responsibility |
+|--------|-----------|----------------|
+| **Controller** | [`src/book_advisor/`](.) — mainly [`run.py`](run.py) | CLI (Click), env/flags, **CLI default paths** for user-facing artifacts (e.g. CSV, discovery DB) via [`paths.py`](paths.py), user-facing messages, exit codes. Parses arguments and calls services; **does not** parse CSV, talk HTTP, or run SQL. |
+| **Service** | [`src/reading_history/`](../reading_history/), [`src/discovery/`](../discovery/) | Use-case orchestration and domain rules (e.g. author filters, discovery runs). May call **repositories** and [`src/common/`](../common/) helpers. |
+| **Shared service logic** | [`src/common/`](../common/) | Rules reused across services (e.g. author-name matching). Not a fourth “product” package; still **service-layer** semantics. |
+| **Repository** | e.g. [`reading_history/goodreads_export/`](../reading_history/goodreads_export/), [`discovery/store.py`](../discovery/store.py), [`discovery/google_books/`](../discovery/google_books/), [`discovery/open_library/`](../discovery/open_library/) | **I/O and external systems**: CSV parsing, SQLite, HTTP catalog APIs. A **repository** here is any boundary that isolates data access or remote calls—not only SQL databases. **Google Books** repository code also owns the default **on-disk API key file path** ([`google_books/paths.py`](../discovery/google_books/paths.py)), not the controller. |
+
+[`paths.py`](paths.py) holds **repo-root-relative defaults** the CLI uses for inputs/outputs it documents (e.g. Goodreads CSV, discovery SQLite). Vendor-specific paths belong with their repository (e.g. Google Books key file).
+
+**CLI commands → layers (today):**
+
+| Command | Controller | Service entrypoints | Repositories |
+|---------|------------|---------------------|--------------|
+| `reading_history` | `run.py` | e.g. [`read_shelf.py`](../reading_history/read_shelf.py) | `goodreads_export` (CSV) |
+| `discovery update` | `run.py` | e.g. [`discovery_update.py`](../discovery/discovery_update.py), [`author_discovery.py`](../discovery/author_discovery.py) | `google_books` / `open_library`, `CandidateStore` |
+| `discovery list` | `run.py` | e.g. [`candidate_list.py`](../discovery/candidate_list.py) | `CandidateStore` |
+
+```mermaid
+flowchart LR
+  subgraph controller [Controller_book_advisor]
+    runPy[run.py]
+    pathsPy[paths.py]
+  end
+  subgraph services [Services]
+    rhShelf[reading_history]
+    discPkg[discovery]
+    commonMod[common]
+  end
+  subgraph repos [Repositories]
+    csvRepo[goodreads_export]
+    storeRepo[CandidateStore]
+    gbRepo[google_books]
+    olRepo[open_library]
+  end
+  runPy --> pathsPy
+  runPy --> rhShelf
+  runPy --> discPkg
+  rhShelf --> csvRepo
+  rhShelf --> commonMod
+  discPkg --> commonMod
+  discPkg --> storeRepo
+  discPkg --> gbRepo
+  discPkg --> olRepo
+```
+
+See also [Repository layout principle](#repository-layout-principle) below (physical `src/` layout vs these logical layers).
+
 ## Reading library (implemented baseline)
 
 The canonical signal for **books you have finished (or shelved as read)**, **star ratings**, **reviews**, and **dates** comes from your **Goodreads desktop library export** (`goodreads_library_export.csv`).
 
-- **Code:** [`src/reading_history/`](../reading_history/) — reading-history ingestion; today the Goodreads CSV lives under [`goodreads_export/`](../reading_history/goodreads_export/) ([`GoodreadsLibraryClient`](../reading_history/goodreads_export/client.py), [`parse_library_csv`](../reading_history/goodreads_export/read_csv.py)).
+- **Code:** [`src/reading_history/`](../reading_history/) — reading-history ingestion; today the Goodreads CSV lives under [`goodreads_export/`](../reading_history/goodreads_export/) ([`GoodreadsLibraryClient`](../reading_history/goodreads_export/client.py), [`parse_library_csv`](../reading_history/goodreads_export/read_csv.py)). **Author-name matching** shared with discovery CLI filters lives in [`src/common/authors.py`](../common/authors.py) (natural vs `Last, First`, case-insensitive).
 - **Local data:** Repo-root [`data/README.md`](../../data/README.md) — place **`goodreads_library_export.csv`** there (gitignored); see that file for all persisted artifacts.
-- **Today:** the [`book_advisor` CLI](run.py) command `reading_history` reads that export and prints read books with **author**, title, and rating. The **same library data** is intended to feed all downstream stages.
+- **Today:** the [`book_advisor` CLI](run.py) command `reading_history` calls the service in [`read_shelf.py`](../reading_history/read_shelf.py) and prints read books with **author**, title, and rating. The **same library data** is intended to feed all downstream stages.
 
 ## Books of interest discovery (planned)
 
@@ -36,7 +87,7 @@ The sourcing paths and the dedupe pass are **not** separate top-level architectu
 
 Discovery uses a pluggable **`AuthorWorksCatalog`** so the backing API can change without rewriting the whole pipeline.
 
-**Primary author catalog (implemented): [Google Books API](https://developers.google.com/books)** — [`discovery/google_books/`](../discovery/google_books/) implements author queries via the Volumes API; the CLI defaults to **`google_books`** with an **API key** from env, optional **`data/google_books_api_key`**, or **`--google-api-key`** (see [SETUP.md](../../SETUP.md)). Strong search coverage and **ISBN-friendly** metadata help dedupe later. Results are **not** guaranteed to match a specific **Kindle** product page; bridging to retail listings can come later.
+**Primary author catalog (implemented): [Google Books API](https://developers.google.com/books)** — [`discovery/google_books/`](../discovery/google_books/) implements author queries via the Volumes API and defines the default **key file** path in [`google_books/paths.py`](../discovery/google_books/paths.py); the CLI defaults to **`google_books`** with an **API key** from env, that file, or **`--google-api-key`** (see [SETUP.md](../../SETUP.md)). Strong search coverage and **ISBN-friendly** metadata help dedupe later. Results are **not** guaranteed to match a specific **Kindle** product page; bridging to retail listings can come later.
 
 **Open Library (optional adapter):** **`discovery/open_library/`** remains available as **`--catalog open_library`** (no key). In practice OL has proven **weak for completeness** for some authors/series; see earlier notes: **author search often returns nothing** while the same author exists on the website under a resolved author record; **coverage is uneven** for active or indie authors and **series are frequently incomplete** (e.g. only some volumes attached to a work); the **work/edition graph** creates **heavy deduplication** burden and duplicate work IDs with **disjoint edition sets** (so even ISBN-based clustering does not always merge obvious duplicates). These issues are **catalog quality and coverage**, not fixable purely by better OL query strings—so OL is **not** the long-term primary source.
 
@@ -122,7 +173,7 @@ flowchart TD
 
 ## Repository layout principle
 
-New **concerns** should appear as **separate packages or directories under [`src/`](../../src/)**, with [`book_advisor`](README.md) responsible for **orchestration**, **CLI**, and **wiring**—not for owning every algorithm or adapter.
+New **concerns** should appear as **separate packages or directories under [`src/`](../../src/)**. The **controller** ([`book_advisor`](README.md)) owns **CLI wiring only**—not catalog algorithms, CSV parsing, or persistence. How that maps to **Controller–Service–Repository** is spelled out in [Layering: Controller–Service–Repository (CSR)](#layering-controllerservicerepository-csr) above.
 
 ### Directory naming under `src/`
 
