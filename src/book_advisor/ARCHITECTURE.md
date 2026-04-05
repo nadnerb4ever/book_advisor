@@ -22,22 +22,35 @@ The canonical signal for **books you have finished (or shelved as read)**, **sta
 
 ## Books of interest discovery (planned)
 
-**Books of interest discovery** is a **single conceptual stage** that produces a **large merged list of candidate books**. It takes the **reading library** (and configured taste signals such as preferred genres or topics) as input. Internally it has **two parts**, which may live in separate modules or packages later but are one pipeline for discovery purposes:
+**Books of interest discovery** is a **single conceptual stage** that produces a **large merged list of candidate books**. It takes the **reading library** (and configured taste signals such as preferred genres or topics) as input. Internally it has **two sourcing paths** plus a **deduplication / identity-resolution pass** that runs on their combined output before the result is treated as a stable **candidate pool**:
 
 1. **Author-based discovery** — finds **other books by authors you have already read**. This path is expected to surface many **series continuations** and same-author follow-ups without a separate “sequel scraper” discovery arm: the ranker (below) handles **how much** to prefer those books once they appear as candidates.
 
 2. **Genre / interest-based discovery** — finds books aligned with **genres or topics** you care about (from your history, explicit preferences, or both), via catalogs, APIs, or other sources TBD.
 
-The two parts **both contribute candidates** into a **candidate pool** with **deduplication and identity resolution** as needed. They are not separate top-level architecture branches—just two methodologies inside one discovery stage.
+3. **Deduplication / identity resolution** — after raw candidates are merged, a **dedupe stage** collapses entries that refer to the **same logical work** but appear as multiple rows (e.g. different catalog keys or editions, noisy titles, overlapping Open Library work vs edition records). Today’s persistence only keys on `(catalog, external_id)` inside a single source stream, so **cross-record duplicates are expected until this stage exists**. The dedupe pass may introduce **canonical work identifiers**, **cluster metadata**, or **merge rules** (exact vs fuzzy matching) and should run **inside** discovery—before the ranker—so downstream stages see one candidate per resolved work where possible.
+
+The sourcing paths and the dedupe pass are **not** separate top-level architecture branches; they are **sub-stages of one discovery pipeline** that feeds the categorizer / ranker.
+
+### Catalog vendor strategy: Open Library, Google Books, optional Amazon
+
+Discovery uses a pluggable **`AuthorWorksCatalog`** so the backing API can change without rewriting the whole pipeline.
+
+**Near-term primary (planned): [Google Books API](https://developers.google.com/books)** — Build and harden the rest of the tool (ranker, recommender, workflow) with **Google Books** as the main author/title discovery source: **API key + quota**, generally strong search coverage, and **ISBN-friendly** metadata for dedupe. Results are **not** guaranteed to line up 1:1 with a specific **Kindle** product page; bridging to “what I can open on Kindle” can be a later step (manual links, ASIN lookup, or a retail API).
+
+**Open Library (current first adapter):** The shipped v1 code uses **Open Library** because it is **keyless** and easy to automate. In practice it has proven **weak for this project’s goals**: **author search often returns nothing** while the same author exists on the website under a resolved author record; **coverage is uneven** for active or indie authors and **series are frequently incomplete** (e.g. only some volumes attached to a work); the **work/edition graph** creates **heavy deduplication** burden and duplicate work IDs with **disjoint edition sets** (so even ISBN-based clustering does not always merge obvious duplicates). These issues are **catalog quality and coverage**, not fixable purely by better OL query strings—so OL is **not** the long-term primary source.
+
+**Future expansion: Amazon (Associates / retail APIs)** — For **Kindle-first** reading (buy or borrow in the Kindle ecosystem), **Amazon** is the most faithful catalog of **what is actually listed**. Using **Product Advertising API** (being superseded for **new** integrations by **[Creators API](https://affiliate-program.amazon.com/creatorsapi/docs/en-us/introduction)** per current Amazon documentation) typically requires **Amazon Associates** compliance: a **declared public Site** (or qualifying app/social channel) with **substantive original content**, **tagged links** as required, and **program rules** (including review after **qualifying referred sales**—personal purchases do not count). That bar is **intentionally deferred** until the rest of Book Advisor is **working end-to-end**; then scope can expand (e.g. a small public site or channel) if retail-aligned discovery is worth the operational overhead.
 
 ### Implementation checklist (books of interest discovery)
 
 Rolling plan: author-based pipeline and persistence first; genre/interest later. See the Cursor plan *Author discovery persistence CLI* for detail.
 
-- [x] **Step 1 — Author-based discovery** — `src/discovery/` package: extract authors from the read shelf, catalog protocol + Open Library (or chosen) adapter, orchestration to produce normalized candidate records.
+- [x] **Step 1 — Author-based discovery** — `src/discovery/` package: extract authors from the read shelf, catalog protocol + adapter, orchestration to produce normalized candidate records. *(Shipped with **Open Library**; **Google Books** adapter planned as primary per [Catalog vendor strategy](#catalog-vendor-strategy-open-library-google-books-optional-amazon) above.)*
 - [x] **Step 2 — Persistence** — SQLite (or chosen) store for candidates; default DB under repo-root **`data/`** (e.g. `data/discovery/candidates.sqlite`, gitignored); upsert and query APIs.
 - [x] **Step 3 — CLI** — `book-advisor discovery update` and `book-advisor discovery list` (or equivalent) wired from [`run.py`](run.py); defaults for CSV path and DB path.
 - [ ] **Step 4 — Genre / interest-based discovery** — *Deferred; not part of the current rollout.*
+- [ ] **Step 5 — Deduplication / identity resolution** — Post-merge pass on discovery output: collapse duplicate logical works (cross-key and fuzzy identity), update storage and CLI/listing as needed so the candidate pool is not full of near-duplicate rows. May ship incrementally (author-only catalog first) before genre sourcing lands.
 
 ## Categorizer / ranker (planned)
 
@@ -66,7 +79,7 @@ The **recommender** takes **rankings** and **release / availability** (what is o
 
 ## End-to-end flow
 
-The **reading library** feeds **books of interest discovery** (author-based and genre/interest-based parts). Their outputs merge into a **candidate pool**. The **categorizer / ranker** also uses the **reading library** for personalization and **series-aware weights and annotations**. Then (optionally) **researcher** feedback, **recommender**, and eventually **interactive** queries.
+The **reading library** feeds **books of interest discovery** (author-based and genre/interest sourcing, then **deduplication / identity resolution**). The resulting **candidate pool** feeds the **categorizer / ranker**, which also uses the **reading library** for personalization and **series-aware weights and annotations**. Then (optionally) **researcher** feedback, **recommender**, and eventually **interactive** queries.
 
 ```mermaid
 flowchart TD
@@ -74,6 +87,7 @@ flowchart TD
   subgraph booksDiscovery [Books of interest discovery]
     authorDisc[Author-based discovery]
     genreDisc[Genre and interest discovery]
+    dedup[Deduplication and identity resolution]
   end
   candidatePool[Candidate pool]
   categorizeRank[Categorizer and ranker]
@@ -83,8 +97,9 @@ flowchart TD
 
   readingLib --> authorDisc
   readingLib --> genreDisc
-  authorDisc --> candidatePool
-  genreDisc --> candidatePool
+  authorDisc --> dedup
+  genreDisc --> dedup
+  dedup --> candidatePool
   candidatePool --> categorizeRank
   readingLib --> categorizeRank
   categorizeRank -.->|"future feedback"| researcher
@@ -99,7 +114,7 @@ flowchart TD
 |------|--------|
 | Reading library from Goodreads CSV | **Implemented** ([`goodreads`](../goodreads/)) |
 | CLI: `reading_history` | **Implemented** ([`run.py`](run.py)) |
-| Books of interest discovery (author-based path) | **Implemented** ([`discovery`](../discovery/)); genre/interest **planned** |
+| Books of interest discovery (author-based path) | **Implemented** with **Open Library** ([`discovery`](../discovery/)); **Google Books** as planned primary catalog; **Amazon** retail/affiliate path **deferred**; deduplication **planned**; genre/interest **planned** |
 | Categorizer / ranker (incl. series-aware weight + annotation) | **Planned** |
 | Researcher loop (deep dive, multi-dim scores) | **Future** |
 | Recommender (top picks + release awareness) | **Planned** |
