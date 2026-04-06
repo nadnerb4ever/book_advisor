@@ -36,4 +36,5 @@ class DiscoveredCandidate:
     catalog: CatalogBackend
     external_id: str
     publication_year: int | None
+    release_date: str | None = None
     raw_json: str | None = None

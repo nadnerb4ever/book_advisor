@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS candidates (
     title TEXT NOT NULL,
     author TEXT NOT NULL,
     publication_year INTEGER,
+    release_date TEXT,
     source TEXT NOT NULL,
     first_seen_at TEXT NOT NULL,
     last_updated_at TEXT NOT NULL,
@@ -41,6 +42,14 @@ def _utc_now_iso() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
 
 
+def _ensure_candidates_release_date(conn: sqlite3.Connection) -> None:
+    cols = {
+        row[1] for row in conn.execute("PRAGMA table_info(candidates)").fetchall()
+    }
+    if "release_date" not in cols:
+        conn.execute("ALTER TABLE candidates ADD COLUMN release_date TEXT")
+
+
 class CandidateStore:
     def __init__(self, path: Path) -> None:
         self._path = path
@@ -54,6 +63,8 @@ class CandidateStore:
     def init_schema(self) -> None:
         with self._connect() as conn:
             conn.executescript(_SCHEMA)
+            _ensure_candidates_release_date(conn)
+            conn.commit()
 
     def upsert_candidates(self, candidates: list[DiscoveredCandidate]) -> int:
         """Insert or merge rows. Returns number of rows written (insert + update)."""
@@ -68,12 +79,13 @@ class CandidateStore:
                     """
                     INSERT INTO candidates (
                         catalog, external_id, title, author, publication_year,
-                        source, first_seen_at, last_updated_at, raw_json
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        release_date, source, first_seen_at, last_updated_at, raw_json
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     ON CONFLICT(catalog, external_id) DO UPDATE SET
                         title = excluded.title,
                         author = excluded.author,
                         publication_year = excluded.publication_year,
+                        release_date = excluded.release_date,
                         source = excluded.source,
                         last_updated_at = excluded.last_updated_at,
                         raw_json = excluded.raw_json
@@ -84,6 +96,7 @@ class CandidateStore:
                         c.title,
                         c.author,
                         c.publication_year,
+                        c.release_date,
                         c.source,
                         now,
                         now,
@@ -107,6 +120,7 @@ class CandidateStore:
             catalog=CatalogBackend(row["catalog"]),
             external_id=row["external_id"],
             publication_year=row["publication_year"],
+            release_date=row["release_date"],
             raw_json=row["raw_json"],
         )
 

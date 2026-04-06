@@ -13,6 +13,7 @@ from discovery.models import (
     CatalogBackend,
     DiscoveredCandidate,
 )
+from discovery.release_date import normalize_published_date_string
 
 _VOLUMES_URL = "https://www.googleapis.com/books/v1/volumes"
 _DEFAULT_TIMEOUT = 30.0
@@ -177,5 +178,6 @@ def _item_to_candidate(item: dict[str, Any], query_author: str) -> DiscoveredCan
         catalog=CatalogBackend.GOOGLE_BOOKS,
         external_id=vid,
         publication_year=_published_year(pd_str),
+        release_date=normalize_published_date_string(pd_str),
         raw_json=raw,
     )

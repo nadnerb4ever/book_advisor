@@ -21,6 +21,7 @@ def test_upsert_and_iter_roundtrip(tmp_path: Path) -> None:
         catalog=CatalogBackend.OPEN_LIBRARY,
         external_id="/works/OL1W",
         publication_year=2001,
+        release_date="2001-06-15",
         raw_json='{"k":1}',
     )
     assert store.upsert_candidates([c]) == 1
@@ -28,6 +29,7 @@ def test_upsert_and_iter_roundtrip(tmp_path: Path) -> None:
     assert len(rows) == 1
     assert rows[0].title == "The Book"
     assert rows[0].external_id == "/works/OL1W"
+    assert rows[0].release_date == "2001-06-15"
     assert store.count() == 1
     assert store.count(source=SOURCE_AUTHOR_BASED) == 1
 
@@ -164,3 +166,41 @@ def test_upsert_empty_returns_zero(tmp_path: Path) -> None:
     db = tmp_path / "c.sqlite"
     store = CandidateStore(db)
     assert store.upsert_candidates([]) == 0
+
+
+def test_migration_adds_release_date_column(tmp_path: Path) -> None:
+    db = tmp_path / "legacy.sqlite"
+    with sqlite3.connect(db) as conn:
+        conn.execute(
+            """
+            CREATE TABLE candidates (
+                catalog TEXT NOT NULL,
+                external_id TEXT NOT NULL,
+                title TEXT NOT NULL,
+                author TEXT NOT NULL,
+                publication_year INTEGER,
+                source TEXT NOT NULL,
+                first_seen_at TEXT NOT NULL,
+                last_updated_at TEXT NOT NULL,
+                raw_json TEXT,
+                PRIMARY KEY (catalog, external_id)
+            )
+            """
+        )
+        conn.commit()
+
+    store = CandidateStore(db)
+    store.init_schema()
+    c = DiscoveredCandidate(
+        title="T",
+        author="A",
+        source=SOURCE_AUTHOR_BASED,
+        catalog=CatalogBackend.OPEN_LIBRARY,
+        external_id="/legacy",
+        publication_year=2005,
+        release_date="2005-05-01",
+    )
+    assert store.upsert_candidates([c]) == 1
+    rows = list(store.iter_candidates())
+    assert len(rows) == 1
+    assert rows[0].release_date == "2005-05-01"
