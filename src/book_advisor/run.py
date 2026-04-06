@@ -5,11 +5,10 @@ from pathlib import Path
 import click
 from click.exceptions import Exit
 
-from book_advisor.paths import default_discovery_db, default_goodreads_csv
+from path_constants import DISCOVERY_CANDIDATES_SQLITE, GOODREADS_LIBRARY_EXPORT_CSV
 from discovery.catalog_factory import MissingGoogleBooksApiKeyError
 from discovery.candidate_list import list_discovery_candidates
 from discovery.discovery_update import run_discovery_update
-from discovery.models import CatalogBackend
 from reading_history.goodreads_export.models import LibraryExportRow
 from reading_history.read_shelf import load_read_shelf_books
 
@@ -69,7 +68,7 @@ def cli() -> None:
     default=None,
     help=(
         "Path to goodreads_library_export.csv "
-        f"(default: {default_goodreads_csv()})"
+        f"(default: {GOODREADS_LIBRARY_EXPORT_CSV})"
     ),
 )
 @click.option(
@@ -80,7 +79,7 @@ def cli() -> None:
 )
 def reading_history(csv_path: Path | None, author_filter: str | None) -> None:
     """Print author, title, and star rating for books on your read shelf."""
-    path = csv_path if csv_path is not None else default_goodreads_csv()
+    path = csv_path if csv_path is not None else GOODREADS_LIBRARY_EXPORT_CSV
     if not path.is_file():
         click.echo(f"CSV not found: {path}", err=True)
         raise Exit(1)
@@ -108,30 +107,14 @@ def discovery_cli() -> None:
     "csv_path",
     type=click.Path(path_type=Path, exists=False, dir_okay=False),
     default=None,
-    help=f"Goodreads export CSV (default: {default_goodreads_csv()})",
+    help=f"Goodreads export CSV (default: {GOODREADS_LIBRARY_EXPORT_CSV})",
 )
 @click.option(
     "--db",
     "db_path",
     type=click.Path(path_type=Path, exists=False, dir_okay=False),
     default=None,
-    help=f"Discovery SQLite path (default: {default_discovery_db()})",
-)
-@click.option(
-    "--catalog",
-    "catalog_name",
-    type=click.Choice([e.value for e in CatalogBackend]),
-    default=CatalogBackend.GOOGLE_BOOKS.value,
-    show_default=True,
-    help="Discovery catalog backend.",
-)
-@click.option(
-    "--google-api-key",
-    "google_api_key",
-    default=None,
-    envvar="GOOGLE_BOOKS_API_KEY",
-    show_envvar=True,
-    help="Google Books API key (CLI wins over env; then key file).",
+    help=f"Discovery SQLite path (default: {DISCOVERY_CANDIDATES_SQLITE})",
 )
 @click.option(
     "--author",
@@ -162,18 +145,16 @@ def discovery_cli() -> None:
 def discovery_update(
     csv_path: Path | None,
     db_path: Path | None,
-    catalog_name: str,
-    google_api_key: str | None,
     only_author: str | None,
     max_authors: int | None,
     max_api_requests: int | None,
 ) -> None:
-    """Fetch author-based candidates and upsert into SQLite (default: Google Books)."""
-    path = csv_path if csv_path is not None else default_goodreads_csv()
+    """Fetch author-based candidates from Google Books and upsert into SQLite."""
+    path = csv_path if csv_path is not None else GOODREADS_LIBRARY_EXPORT_CSV
     if not path.is_file():
         click.echo(f"CSV not found: {path}", err=True)
         raise Exit(1)
-    out_db = db_path if db_path is not None else default_discovery_db()
+    out_db = db_path if db_path is not None else DISCOVERY_CANDIDATES_SQLITE
     if max_authors is not None and max_authors < 1:
         click.echo("--max-authors must be at least 1.", err=True)
         raise Exit(1)
@@ -184,8 +165,6 @@ def discovery_update(
         result = run_discovery_update(
             csv_path=path,
             out_db=out_db,
-            catalog_name=catalog_name,
-            google_api_key=google_api_key,
             only_author=only_author,
             logger=click.echo,
             max_authors=max_authors,
@@ -211,7 +190,7 @@ def discovery_update(
     "db_path",
     type=click.Path(path_type=Path, exists=False, dir_okay=False),
     default=None,
-    help=f"Discovery SQLite path (default: {default_discovery_db()})",
+    help=f"Discovery SQLite path (default: {DISCOVERY_CANDIDATES_SQLITE})",
 )
 @click.option(
     "--source",
@@ -248,7 +227,7 @@ def discovery_list(
         click.echo(str(exc), err=True)
         raise Exit(1) from exc
 
-    db = db_path if db_path is not None else default_discovery_db()
+    db = db_path if db_path is not None else DISCOVERY_CANDIDATES_SQLITE
     if not db.is_file():
         click.echo(f"Database not found: {db}", err=True)
         raise Exit(1)

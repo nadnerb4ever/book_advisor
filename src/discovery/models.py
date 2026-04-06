@@ -10,6 +10,7 @@ class CatalogBackend(StrEnum):
     """Which external catalog produced a candidate row."""
 
     GOOGLE_BOOKS = "google_books"
+    # Persisted by older runs only; discovery no longer queries this backend.
     OPEN_LIBRARY = "open_library"
 
 

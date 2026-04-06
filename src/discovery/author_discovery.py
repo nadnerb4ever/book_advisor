@@ -12,8 +12,8 @@ from common.authors import (
 from reading_history import GoodreadsLibraryClient
 from reading_history.goodreads_export.models import LibraryExportRow
 from discovery.catalog import AuthorWorksCatalog
+from discovery.catalog_factory import build_author_works_catalog
 from discovery.models import DiscoveredCandidate
-from discovery.open_library import OpenLibraryCatalog
 
 
 def _authors_restricted_to_only(
@@ -122,7 +122,7 @@ def run_author_discovery_to_list(
     n_read = len(books)
     if logger:
         logger(f"Found {n_read} book(s) on the read shelf.")
-    cat = catalog if catalog is not None else OpenLibraryCatalog()
+    cat = catalog if catalog is not None else build_author_works_catalog()
     return discover_author_based_candidates(
         books,
         cat,

@@ -7,7 +7,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from discovery.author_discovery import shelf_author_names_for_discovery
-from discovery.catalog import AuthorWorksCatalog
 from discovery.catalog_factory import build_author_works_catalog
 from discovery.google_books.catalog import GoogleBooksCatalog
 from discovery.models import AuthorRefreshState, CatalogBackend
@@ -29,20 +28,18 @@ def run_discovery_update(
     *,
     csv_path: Path,
     out_db: Path,
-    catalog_name: str,
-    google_api_key: str | None,
     only_author: str | None,
     logger: Callable[[str], None] | None,
     max_authors: int | None = None,
     max_api_requests: int | None = None,
     pause_between_authors_sec: float = 1.0,
 ) -> DiscoveryUpdateResult:
-    """Resumable author-based discovery: upsert into SQLite; Google Books uses per-page API calls and cursors.
+    """Resumable author-based discovery via Google Books: per-page API calls and cursors.
 
     Raises:
         MissingGoogleBooksApiKeyError: from ``build_author_works_catalog`` when key missing.
     """
-    backend = CatalogBackend(catalog_name)
+    backend = CatalogBackend.GOOGLE_BOOKS
     store = CandidateStore(out_db)
     authors = shelf_author_names_for_discovery(csv_path, only_author)
     if not authors:
@@ -66,65 +63,17 @@ def run_discovery_update(
             f"(incomplete / stale first)."
         )
 
-    cat: AuthorWorksCatalog = build_author_works_catalog(
-        catalog_name,
-        google_api_key=google_api_key,
-    )
-
-    total_upserts = 0
-    api_used = 0
-    resume_message: str | None = None
-    hit_api_cap = False
-
-    if backend is CatalogBackend.OPEN_LIBRARY:
-        for i, name in enumerate(to_process):
-            if logger:
-                logger(f"[{i + 1}/{len(to_process)}] {name} …")
-            now = _utc_now_iso()
-            prev = store.get_author_refresh_state(backend, name)
-            try:
-                batch = cat.works_by_author(name)
-            except Exception:
-                store.put_author_refresh_state(
-                    AuthorRefreshState(
-                        catalog=backend,
-                        author=name,
-                        resume_cursor=0,
-                        complete=False,
-                        last_completed_at=prev.last_completed_at if prev else None,
-                        last_attempt_at=now,
-                        updated_at=now,
-                    )
-                )
-                raise
-            n = store.upsert_candidates(batch)
-            total_upserts += n
-            store.put_author_refresh_state(
-                AuthorRefreshState(
-                    catalog=backend,
-                    author=name,
-                    resume_cursor=0,
-                    complete=True,
-                    last_completed_at=now,
-                    last_attempt_at=now,
-                    updated_at=now,
-                )
-            )
-            if logger:
-                logger(f"    → upserted {n} row(s); marked complete.")
-            if pause_between_authors_sec > 0 and i + 1 < len(to_process):
-                time.sleep(pause_between_authors_sec)
-        return DiscoveryUpdateResult(
-            upserted_rows=total_upserts,
-            authors_targeted=len(to_process),
-            resume_message=resume_message,
-        )
-
+    cat = build_author_works_catalog()
     if not isinstance(cat, GoogleBooksCatalog):
         msg = f"Expected GoogleBooksCatalog for {backend!r}, got {type(cat)!r}"
         raise TypeError(msg)
 
     gb = cat
+
+    total_upserts = 0
+    api_used = 0
+    resume_message: str | None = None
+    hit_api_cap = False
 
     for i, name in enumerate(to_process):
         if hit_api_cap:

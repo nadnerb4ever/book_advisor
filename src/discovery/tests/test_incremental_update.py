@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-import requests
+import pytest
 import responses
 
 from discovery.discovery_update import run_discovery_update
@@ -21,7 +21,11 @@ def _minimal_read_csv(author: str = "Jane Doe") -> str:
 
 
 @responses.activate
-def test_max_api_requests_saves_resume_cursor(tmp_path: Path) -> None:
+def test_max_api_requests_saves_resume_cursor(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("GOOGLE_BOOKS_API_KEY", "fake-key")
     csv_path = tmp_path / "lib.csv"
     csv_path.write_text(_minimal_read_csv(), encoding="utf-8")
     db_path = tmp_path / "c.sqlite"
@@ -62,8 +66,6 @@ def test_max_api_requests_saves_resume_cursor(tmp_path: Path) -> None:
     result = run_discovery_update(
         csv_path=csv_path,
         out_db=db_path,
-        catalog_name=CatalogBackend.GOOGLE_BOOKS.value,
-        google_api_key="fake-key",  # noqa: S106
         only_author=None,
         logger=None,
         max_authors=None,
@@ -85,7 +87,11 @@ def test_max_api_requests_saves_resume_cursor(tmp_path: Path) -> None:
 
 
 @responses.activate
-def test_incremental_completes_author_and_marks_complete(tmp_path: Path) -> None:
+def test_incremental_completes_author_and_marks_complete(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("GOOGLE_BOOKS_API_KEY", "fake-key")
     csv_path = tmp_path / "lib.csv"
     csv_path.write_text(_minimal_read_csv(), encoding="utf-8")
     db_path = tmp_path / "c.sqlite"
@@ -107,8 +113,6 @@ def test_incremental_completes_author_and_marks_complete(tmp_path: Path) -> None
     result = run_discovery_update(
         csv_path=csv_path,
         out_db=db_path,
-        catalog_name=CatalogBackend.GOOGLE_BOOKS.value,
-        google_api_key="fake-key",  # noqa: S106
         only_author=None,
         logger=None,
         max_authors=None,

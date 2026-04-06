@@ -20,9 +20,9 @@ pip install -e ".[dev]"
 
 That path is **gitignored** (only [`data/README.md`](data/README.md) is tracked). See that file for the full artifact list.
 
-## 3. Google Books API key (for default discovery)
+## 3. Google Books API key (for discovery)
 
-`book-advisor discovery update` defaults to the **Google Books** catalog and needs an API key unless you pass **`--catalog open_library`**.
+`book-advisor discovery update` queries **Google Books** and needs an API key from **either** the environment **or** the default key file (see below). The CLI does **not** accept the key as a flag; the default file path is [`GOOGLE_BOOKS_API_KEY_PATH`](src/path_constants.py), and reading the key happens only in [`discovery/google_books/paths.py`](src/discovery/google_books/paths.py).
 
 ### Get a key
 
@@ -35,11 +35,10 @@ That path is **gitignored** (only [`data/README.md`](data/README.md) is tracked)
 
 | Method | What to do |
 |--------|------------|
-| **File** | Create **`data/google_books_api_key`** with the key on **one line** (optional `#` comment lines ignored). Same `data/` rules as above; path is explicitly gitignored. |
 | **Environment** | Export **`GOOGLE_BOOKS_API_KEY`** before running commands. |
-| **CLI** | Pass **`--google-api-key YOUR_KEY`** to `discovery update` (highest precedence). |
+| **File** | Create **`data/google_books_api_key`** with the key on **one line** (optional `#` comment lines ignored). Same `data/` rules as above; path is explicitly gitignored. |
 
-Precedence: **`--google-api-key`** → **`GOOGLE_BOOKS_API_KEY`** (via Click) → **`data/google_books_api_key`**.
+Precedence: **`GOOGLE_BOOKS_API_KEY`** (if set and non-empty), else **`data/google_books_api_key`**.
 
 ### Quotas and resuming
 
@@ -53,15 +52,7 @@ curl -sS "https://www.googleapis.com/books/v1/volumes?q=test&key=YOUR_KEY_HERE" 
 
 You should see JSON (not only an `error` object).
 
-## 4. Open Library without a key
-
-To experiment without Google:
-
-```bash
-book-advisor discovery update --catalog open_library
-```
-
-## 5. Verify
+## 4. Verify
 
 ```bash
 book-advisor reading_history
@@ -69,4 +60,4 @@ book-advisor discovery update
 book-advisor discovery list
 ```
 
-If `discovery update` fails on a missing key, re-read **§3** or use **`--catalog open_library`**.
+If `discovery update` fails on a missing key, re-read **§3**.

@@ -1,16 +1,13 @@
 from __future__ import annotations
 
-from discovery.google_books.paths import (
-    default_google_books_api_key_path,
-    workspace_root,
-)
+from path_constants import GOOGLE_BOOKS_API_KEY_PATH, WORKSPACE_ROOT
 
 
 def test_workspace_root_contains_src() -> None:
-    assert (workspace_root() / "src" / "discovery").is_dir()
+    assert (WORKSPACE_ROOT / "src" / "discovery").is_dir()
 
 
-def test_default_api_key_path_is_data_file() -> None:
-    p = default_google_books_api_key_path()
+def test_google_books_api_key_path_is_data_file() -> None:
+    p = GOOGLE_BOOKS_API_KEY_PATH
     assert p.name == "google_books_api_key"
     assert p.parent.name == "data"

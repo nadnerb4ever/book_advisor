@@ -1,27 +1,28 @@
 from __future__ import annotations
 
-from pathlib import Path
+import os
+
+from path_constants import GOOGLE_BOOKS_API_KEY_PATH
+
+_GOOGLE_BOOKS_API_KEY_ENV = "GOOGLE_BOOKS_API_KEY"
 
 
-def workspace_root() -> Path:
-    """Book Advisor repo root (directory that contains ``src`` and ``data``)."""
-    return Path(__file__).resolve().parent.parent.parent.parent
-
-
-def default_google_books_api_key_path() -> Path:
-    """Default location for the on-disk API key file (gitignored)."""
-    return workspace_root() / "data" / "google_books_api_key"
-
-
-def read_api_key_from_file(path: Path | None = None) -> str | None:
-    """First non-empty, non-comment line from the key file, or ``None`` if missing/empty."""
-    key_path = path if path is not None else default_google_books_api_key_path()
-    if not key_path.is_file():
+def _read_api_key_from_file() -> str | None:
+    """First non-empty, non-comment line from the default key file, or ``None`` if missing/empty."""
+    if not GOOGLE_BOOKS_API_KEY_PATH.is_file():
         return None
-    text = key_path.read_text(encoding="utf-8")
+    text = GOOGLE_BOOKS_API_KEY_PATH.read_text(encoding="utf-8")
     for line in text.splitlines():
         stripped = line.strip()
         if not stripped or stripped.startswith("#"):
             continue
         return stripped
     return None
+
+
+def read_google_books_api_key() -> str | None:
+    """Resolve API key from environment, then default key file (repository layer only)."""
+    raw = os.environ.get(_GOOGLE_BOOKS_API_KEY_ENV)
+    if raw is not None and raw.strip():
+        return raw.strip()
+    return _read_api_key_from_file()

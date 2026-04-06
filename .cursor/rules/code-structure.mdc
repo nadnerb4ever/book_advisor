@@ -20,3 +20,8 @@ Thin indirection makes navigation and reasoning harder without buying clarity or
 - **Tests follow the same rule.** Lower-layer unit tests should not need to pull in upper-stack packages unless you are explicitly integration-testing the stack.
 
 This is not an argument against depending on **abstractions** from below; it is a rule against **inverted** dependencies where implementation depth points the wrong way.
+
+## Module-private helpers
+
+- **Leading underscore.** A **module-level function** or **method** that is only used **inside its defining module** (or class) should be named with a **leading underscore** (e.g. `_parse_chunk`, `_normalize_line`).
+- **Public surface stays clear.** Names without a leading underscore signal “part of what this module or class is meant to expose or reuse from elsewhere.”

@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from path_constants import GOOGLE_BOOKS_API_KEY_PATH
+
 from discovery.catalog import AuthorWorksCatalog
-from discovery.google_books.paths import default_google_books_api_key_path, read_api_key_from_file
-from discovery.models import CatalogBackend
+from discovery.google_books.paths import read_google_books_api_key
 
 
 class MissingGoogleBooksApiKeyError(Exception):
@@ -13,33 +14,14 @@ class MissingGoogleBooksApiKeyError(Exception):
         self.message = message
 
 
-def resolve_google_books_api_key(cli_or_env_key: str | None) -> str | None:
-    if cli_or_env_key is not None and cli_or_env_key.strip():
-        return cli_or_env_key.strip()
-    return read_api_key_from_file()
+def build_author_works_catalog() -> AuthorWorksCatalog:
+    key = read_google_books_api_key()
+    if not key:
+        msg = (
+            "Google Books catalog requires an API key. Set GOOGLE_BOOKS_API_KEY or "
+            f"put the key in {GOOGLE_BOOKS_API_KEY_PATH} (first non-comment line)."
+        )
+        raise MissingGoogleBooksApiKeyError(msg)
+    from discovery.google_books import GoogleBooksCatalog
 
-
-def build_author_works_catalog(
-    catalog_name: str,
-    *,
-    google_api_key: str | None,
-) -> AuthorWorksCatalog:
-    backend = CatalogBackend(catalog_name)
-    if backend is CatalogBackend.OPEN_LIBRARY:
-        from discovery.open_library import OpenLibraryCatalog
-
-        return OpenLibraryCatalog()
-    if backend is CatalogBackend.GOOGLE_BOOKS:
-        key = resolve_google_books_api_key(google_api_key)
-        if not key:
-            key_file = default_google_books_api_key_path()
-            msg = (
-                "Google Books catalog requires an API key. Set GOOGLE_BOOKS_API_KEY, "
-                f"put the key in {key_file} (first non-comment line), pass "
-                "--google-api-key, or use --catalog open_library."
-            )
-            raise MissingGoogleBooksApiKeyError(msg)
-        from discovery.google_books import GoogleBooksCatalog
-
-        return GoogleBooksCatalog(key)
-    raise AssertionError(f"Unhandled catalog {backend!r}")
+    return GoogleBooksCatalog(key)

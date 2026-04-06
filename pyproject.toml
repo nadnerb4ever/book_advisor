@@ -19,6 +19,9 @@ book-advisor = "book_advisor.run:main"
 [project.optional-dependencies]
 dev = ["pytest>=8", "responses>=0.25"]
 
+[tool.setuptools]
+py-modules = ["path_constants"]
+
 [tool.setuptools.packages.find]
 where = ["src"]
 
