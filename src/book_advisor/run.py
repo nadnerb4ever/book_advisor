@@ -139,12 +139,34 @@ def discovery_cli() -> None:
     default=None,
     help=_AUTHOR_OPTION_HELP + " Must match a read-shelf primary `Author` value.",
 )
+@click.option(
+    "--max-authors",
+    "max_authors",
+    type=int,
+    default=None,
+    help=(
+        "Process at most this many authors this run (incomplete / stale first). "
+        "Omit to process all incomplete authors."
+    ),
+)
+@click.option(
+    "--max-api-requests",
+    "max_api_requests",
+    type=int,
+    default=None,
+    help=(
+        "Stop after this many catalog HTTP requests (Google Books: one per page). "
+        "Progress and cursors are saved; re-run to continue."
+    ),
+)
 def discovery_update(
     csv_path: Path | None,
     db_path: Path | None,
     catalog_name: str,
     google_api_key: str | None,
     only_author: str | None,
+    max_authors: int | None,
+    max_api_requests: int | None,
 ) -> None:
     """Fetch author-based candidates and upsert into SQLite (default: Google Books)."""
     path = csv_path if csv_path is not None else default_goodreads_csv()
@@ -152,14 +174,22 @@ def discovery_update(
         click.echo(f"CSV not found: {path}", err=True)
         raise Exit(1)
     out_db = db_path if db_path is not None else default_discovery_db()
+    if max_authors is not None and max_authors < 1:
+        click.echo("--max-authors must be at least 1.", err=True)
+        raise Exit(1)
+    if max_api_requests is not None and max_api_requests < 1:
+        click.echo("--max-api-requests must be at least 1.", err=True)
+        raise Exit(1)
     try:
-        n_cand, n_upsert = run_discovery_update(
+        result = run_discovery_update(
             csv_path=path,
             out_db=out_db,
             catalog_name=catalog_name,
             google_api_key=google_api_key,
             only_author=only_author,
             logger=click.echo,
+            max_authors=max_authors,
+            max_api_requests=max_api_requests,
         )
     except MissingGoogleBooksApiKeyError as exc:
         click.echo(exc.message, err=True)
@@ -167,8 +197,12 @@ def discovery_update(
     except Exception as exc:
         click.echo(f"Discovery failed: {exc}", err=True)
         raise Exit(1) from exc
-    click.echo(f"Writing {n_cand} candidate(s) to {out_db} …")
-    click.echo(f"Upserted {n_upsert} candidate row(s) into {out_db}")
+    click.echo(
+        f"Upserted {result.upserted_rows} candidate row(s) into {out_db} "
+        f"({result.authors_targeted} author(s) scheduled this run)."
+    )
+    if result.resume_message:
+        click.echo(result.resume_message)
 
 
 @discovery_cli.command("list")

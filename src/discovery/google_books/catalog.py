@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import re
 import time
+from dataclasses import dataclass
 from typing import Any
 
 import requests
@@ -19,6 +20,15 @@ _DEFAULT_PAGE_SIZE = 40
 _DEFAULT_MAX_VOLUMES_PER_AUTHOR = 400
 _DEFAULT_PAUSE_SEC = 0.25
 _YEAR_RE = re.compile(r"^(\d{4})")
+
+
+@dataclass(frozen=True, slots=True)
+class AuthorPageResult:
+    """One Google Books volumes list response for an author query."""
+
+    candidates: list[DiscoveredCandidate]
+    next_start_index: int
+    exhausted: bool
 
 
 def _google_books_http_error_message(response: requests.Response) -> str:
@@ -59,46 +69,74 @@ class GoogleBooksCatalog:
         self._max_volumes = max_volumes_per_author
         self._pause = pause_between_pages_sec
 
+    @property
+    def max_volumes_per_author(self) -> int:
+        return self._max_volumes
+
+    @property
+    def pause_between_pages_sec(self) -> float:
+        return self._pause
+
+    def fetch_author_page(
+        self,
+        author_name: str,
+        *,
+        start_index: int,
+    ) -> AuthorPageResult:
+        """Perform a single list request; used for resumable / incremental updates."""
+        resp = self._session.get(
+            _VOLUMES_URL,
+            params={
+                "q": f'inauthor:"{author_name}"',
+                "key": self._api_key,
+                "maxResults": self._page_size,
+                "startIndex": start_index,
+            },
+            timeout=self._timeout,
+        )
+        if not resp.ok:
+            detail = _google_books_http_error_message(resp)
+            base = f"Google Books API HTTP {resp.status_code}"
+            raise RuntimeError(f"{base}: {detail}" if detail else base)
+        data: dict[str, Any] = resp.json()
+        items = data.get("items") or []
+        if not items:
+            return AuthorPageResult([], start_index, True)
+
+        candidates: list[DiscoveredCandidate] = []
+        seen_ids: set[str] = set()
+        for item in items:
+            cand = _item_to_candidate(item, author_name)
+            if cand is None:
+                continue
+            if cand.external_id in seen_ids:
+                continue
+            seen_ids.add(cand.external_id)
+            candidates.append(cand)
+
+        total_items = data.get("totalItems")
+        next_start = start_index + len(items)
+        exhausted = isinstance(total_items, int) and next_start >= total_items
+        return AuthorPageResult(candidates, next_start, exhausted)
+
     def works_by_author(self, author_name: str) -> list[DiscoveredCandidate]:
         out: list[DiscoveredCandidate] = []
         seen_ids: set[str] = set()
         start_index = 0
         while len(out) < self._max_volumes:
-            resp = self._session.get(
-                _VOLUMES_URL,
-                params={
-                    "q": f'inauthor:"{author_name}"',
-                    "key": self._api_key,
-                    "maxResults": self._page_size,
-                    "startIndex": start_index,
-                },
-                timeout=self._timeout,
-            )
-            if not resp.ok:
-                detail = _google_books_http_error_message(resp)
-                base = f"Google Books API HTTP {resp.status_code}"
-                raise RuntimeError(f"{base}: {detail}" if detail else base)
-            data: dict[str, Any] = resp.json()
-            items = data.get("items") or []
-            if not items:
+            page = self.fetch_author_page(author_name, start_index=start_index)
+            if not page.candidates and page.exhausted:
                 break
-            for item in items:
+            for cand in page.candidates:
                 if len(out) >= self._max_volumes:
                     break
-                cand = _item_to_candidate(item, author_name)
-                if cand is None:
-                    continue
                 if cand.external_id in seen_ids:
                     continue
                 seen_ids.add(cand.external_id)
                 out.append(cand)
-            # Google often returns fewer than maxResults (e.g. 20 when maxResults=40);
-            # use totalItems and advance by actual page size, not requested page size.
-            total_items = data.get("totalItems")
-            start_index += len(items)
-            if isinstance(total_items, int) and start_index >= total_items:
+            start_index = page.next_start_index
+            if page.exhausted:
                 break
-            # No totalItems: keep requesting until a page returns zero items (see loop guard).
             if self._pause > 0:
                 time.sleep(self._pause)
         return out

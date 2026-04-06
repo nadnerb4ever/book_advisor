@@ -41,6 +41,10 @@ That path is **gitignored** (only [`data/README.md`](data/README.md) is tracked)
 
 Precedence: **`--google-api-key`** → **`GOOGLE_BOOKS_API_KEY`** (via Click) → **`data/google_books_api_key`**.
 
+### Quotas and resuming
+
+Google Books enforces **daily quotas**. Use **`book-advisor discovery update --max-api-requests N`** to cap HTTP calls per run (each list page is one request). Progress is saved in **`data/discovery/candidates.sqlite`** (`author_catalog_refresh` + candidate upserts). **`--max-authors M`** processes at most **M** authors per run, preferring those **not completed** and with the **oldest** `last_attempt_at`. Re-run the same command later to continue.
+
 ### Optional sanity check
 
 ```bash

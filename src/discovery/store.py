@@ -5,7 +5,7 @@ from collections.abc import Iterator
 from datetime import datetime, timezone
 from pathlib import Path
 
-from discovery.models import CatalogBackend, DiscoveredCandidate
+from discovery.models import AuthorRefreshState, CatalogBackend, DiscoveredCandidate
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS candidates (
@@ -23,6 +23,16 @@ CREATE TABLE IF NOT EXISTS candidates (
 CREATE TABLE IF NOT EXISTS meta (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS author_catalog_refresh (
+    catalog TEXT NOT NULL,
+    author TEXT NOT NULL,
+    resume_cursor INTEGER NOT NULL DEFAULT 0,
+    complete INTEGER NOT NULL DEFAULT 0,
+    last_completed_at TEXT,
+    last_attempt_at TEXT,
+    updated_at TEXT NOT NULL,
+    PRIMARY KEY (catalog, author)
 );
 """
 
@@ -149,3 +159,109 @@ class CandidateStore:
             cur = conn.execute(sql, params)
             row = cur.fetchone()
             return int(row[0]) if row else 0
+
+    def _row_to_author_refresh(self, row: sqlite3.Row) -> AuthorRefreshState:
+        return AuthorRefreshState(
+            catalog=CatalogBackend(row["catalog"]),
+            author=row["author"],
+            resume_cursor=int(row["resume_cursor"]),
+            complete=bool(row["complete"]),
+            last_completed_at=row["last_completed_at"],
+            last_attempt_at=row["last_attempt_at"],
+            updated_at=row["updated_at"],
+        )
+
+    def get_author_refresh_state(
+        self,
+        catalog: CatalogBackend,
+        author: str,
+    ) -> AuthorRefreshState | None:
+        self.init_schema()
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT * FROM author_catalog_refresh "
+                "WHERE catalog = ? AND author = ?",
+                (catalog.value, author),
+            ).fetchone()
+            return self._row_to_author_refresh(row) if row else None
+
+    def put_author_refresh_state(self, state: AuthorRefreshState) -> None:
+        self.init_schema()
+        with self._connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO author_catalog_refresh (
+                    catalog, author, resume_cursor, complete,
+                    last_completed_at, last_attempt_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(catalog, author) DO UPDATE SET
+                    resume_cursor = excluded.resume_cursor,
+                    complete = excluded.complete,
+                    last_completed_at = excluded.last_completed_at,
+                    last_attempt_at = excluded.last_attempt_at,
+                    updated_at = excluded.updated_at
+                """,
+                (
+                    state.catalog.value,
+                    state.author,
+                    state.resume_cursor,
+                    1 if state.complete else 0,
+                    state.last_completed_at,
+                    state.last_attempt_at,
+                    state.updated_at,
+                ),
+            )
+            conn.commit()
+
+    def load_author_refresh_map(
+        self,
+        catalog: CatalogBackend,
+        authors: list[str],
+    ) -> dict[str, AuthorRefreshState]:
+        """Load refresh rows for the given authors in one query."""
+        if not authors:
+            return {}
+        self.init_schema()
+        placeholders = ",".join("?" * len(authors))
+        sql = (
+            f"SELECT * FROM author_catalog_refresh WHERE catalog = ? "
+            f"AND author IN ({placeholders})"
+        )
+        params: list[object] = [catalog.value, *authors]
+        out: dict[str, AuthorRefreshState] = {}
+        with self._connect() as conn:
+            for row in conn.execute(sql, params):
+                st = self._row_to_author_refresh(row)
+                out[st.author] = st
+        return out
+
+    def select_authors_for_run(
+        self,
+        catalog: CatalogBackend,
+        shelf_authors: list[str],
+        *,
+        limit: int | None,
+    ) -> list[str]:
+        """Incomplete authors first, then oldest ``last_attempt_at``, then name.
+
+        Authors with ``complete=1`` are omitted. Missing table rows are treated
+        as incomplete (never refreshed).
+        """
+        by_name = self.load_author_refresh_map(catalog, shelf_authors)
+
+        def sort_key(name: str) -> tuple[int, str, str]:
+            st = by_name.get(name)
+            if st is None or st.last_attempt_at is None:
+                return (0, "", name)
+            return (1, st.last_attempt_at, name)
+
+        incomplete = []
+        for a in shelf_authors:
+            st = by_name.get(a)
+            if st is not None and st.complete:
+                continue
+            incomplete.append(a)
+        incomplete.sort(key=sort_key)
+        if limit is not None:
+            return incomplete[:limit]
+        return incomplete

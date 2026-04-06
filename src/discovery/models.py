@@ -14,6 +14,19 @@ class CatalogBackend(StrEnum):
 
 
 @dataclass(frozen=True, slots=True)
+class AuthorRefreshState:
+    """Per-author progress for a catalog (pagination cursor + refresh metadata)."""
+
+    catalog: CatalogBackend
+    author: str
+    resume_cursor: int
+    complete: bool
+    last_completed_at: str | None
+    last_attempt_at: str | None
+    updated_at: str
+
+
+@dataclass(frozen=True, slots=True)
 class DiscoveredCandidate:
     """A book surfaced by discovery (not yet ranked)."""
 

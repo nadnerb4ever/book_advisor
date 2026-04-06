@@ -95,6 +95,18 @@ def load_read_books(csv_path: Path):
     return client.read_books()
 
 
+def shelf_author_names_for_discovery(
+    csv_path: Path,
+    only_author: str | None,
+) -> list[str]:
+    """Distinct read-shelf primary author strings, optionally filtered by ``--author``."""
+    books = load_read_books(csv_path)
+    authors = unique_primary_author_names(books)
+    if only_author is not None:
+        authors = _authors_restricted_to_only(authors, only_author)
+    return authors
+
+
 def run_author_discovery_to_list(
     csv_path: Path,
     *,
