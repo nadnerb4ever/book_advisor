@@ -1,0 +1,22 @@
+---
+description: Meaningful abstractions and one-way stack dependencies (no clutter, no upside-down imports)
+alwaysApply: true
+---
+
+# Code structure
+
+## Meaningful abstractions only
+
+- **No gratuitous layers.** Do not add modules, classes, or functions whose only job is to call through to another single implementation (e.g. a “service” file that wraps one function with identical parameters and no extra behavior).
+- **Purpose first.** Introduce a new abstraction only when it clearly helps: shared behavior, a real boundary (e.g. I/O, external API), test seams that need it, or multiple callers that would otherwise duplicate logic.
+- **Collapse when redundant.** If a wrapper or façade no longer adds value, remove it and call the real implementation directly; update imports and docs in the same change.
+
+Thin indirection makes navigation and reasoning harder without buying clarity or reuse.
+
+## One-way stack dependencies
+
+- **Direction.** Code in a lower layer (e.g. domain, persistence, catalog adapters) must not depend on, import, or assume details of code in layers above it (e.g. CLI, app entrypoints, orchestration that wires everything).
+- **No upside-down coupling.** If a “downstream” module needs behavior that lives “upstream,” fix the shape of the boundary: move shared contracts to a neutral place, pass callbacks or ports in from the caller, or lift the orchestration—do not make the lower layer call into the upper one.
+- **Tests follow the same rule.** Lower-layer unit tests should not need to pull in upper-stack packages unless you are explicitly integration-testing the stack.
+
+This is not an argument against depending on **abstractions** from below; it is a rule against **inverted** dependencies where implementation depth points the wrong way.
